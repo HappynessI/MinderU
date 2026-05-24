@@ -68,4 +68,3 @@ curl -s -X POST http://127.0.0.1:8000/query \
 - 医疗 RAG：强调证据链、来源追溯、结构化医学概念和跨文献一致性。
 
 更完整方案见 [docs/TECHNICAL_SOLUTION.md](docs/TECHNICAL_SOLUTION.md)。
-
