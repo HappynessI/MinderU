@@ -1,0 +1,25 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Large/local artifacts
+data/raw/
+data/outputs/
+data/indexes/
+data/runs/
+*.sqlite
+*.db
+*.qdrant/
+
+# Keep sample metadata in git, but avoid committing copied PDFs by accident.
+医疗赛题/相关样例/*.pdf
+*.tmp
+*.log

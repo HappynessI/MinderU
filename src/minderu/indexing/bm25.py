@@ -1,0 +1,139 @@
+from __future__ import annotations
+
+import math
+import re
+from collections import Counter
+from dataclasses import asdict
+from typing import Any
+
+from minderu.schema import Chunk
+
+
+TOKEN_RE = re.compile(r"[A-Za-z]+(?:[-_][A-Za-z]+)*|\d+(?:\.\d+)?|[\u4e00-\u9fff]|[Δδ∆±%/]+|[A-Za-z]*\d+[A-Za-z]*")
+
+QUERY_ALIASES = {
+    "摘要": " abstract objectives background methods results conclusions",
+    "结果": " results outcome outcomes endpoint end point",
+    "方法": " methods",
+    "结论": " conclusions",
+    "表格": " table",
+    "表": " table",
+    "图": " fig figure",
+    "诊断流程图": " diagnostic flowchart algorithm",
+    "答案": " answer",
+    "医学指标": " ci cardiac index l/min m2 ⌬ci ΔCI",
+}
+
+
+def tokenize(text: str) -> list[str]:
+    tokens = [m.group(0).lower() for m in TOKEN_RE.finditer(text)]
+    # Add lightweight CJK bigrams to make Chinese phrase retrieval less sparse.
+    cjk = re.findall(r"[\u4e00-\u9fff]{2,}", text)
+    for seq in cjk:
+        tokens.extend(seq[i : i + 2] for i in range(len(seq) - 1))
+    return tokens
+
+
+class BM25Index:
+    def __init__(self, chunks: list[Chunk], k1: float = 1.5, b: float = 0.75):
+        self.chunks = chunks
+        self.k1 = k1
+        self.b = b
+        self.doc_tokens = [tokenize(c.text) for c in chunks]
+        self.doc_lens = [len(t) for t in self.doc_tokens]
+        self.avgdl = sum(self.doc_lens) / max(1, len(self.doc_lens))
+        self.term_freqs = [Counter(toks) for toks in self.doc_tokens]
+        df: Counter[str] = Counter()
+        for toks in self.doc_tokens:
+            df.update(set(toks))
+        n = max(1, len(chunks))
+        self.idf = {term: math.log(1 + (n - freq + 0.5) / (freq + 0.5)) for term, freq in df.items()}
+
+    def search(
+        self,
+        query: str,
+        top_k: int = 8,
+        source_hint: str | None = None,
+        page_hint: int | None = None,
+    ) -> list[dict[str, Any]]:
+        expanded_query = query + "".join(extra for key, extra in QUERY_ALIASES.items() if key in query)
+        q_terms = tokenize(expanded_query)
+        scores: list[tuple[float, int]] = []
+        query_lower = query.lower()
+        source_hint_lower = source_hint.lower() if source_hint else None
+        label_match = re.search(r"(?:table|fig(?:ure)?|图|表)\s*([0-9一二三四五六七八九十]+)", query, re.I)
+        label_texts: list[str] = []
+        if label_match:
+            num = label_match.group(1)
+            prefix = label_match.group(0).lower()
+            label_texts.append(prefix.replace(" ", ""))
+            if "图" in prefix:
+                label_texts.extend([f"fig{num}", f"figure{num}"])
+                if "表格" in query or "表" in query:
+                    label_texts.append(f"table{num}")
+            if "表" in prefix:
+                label_texts.extend([f"table{num}"])
+        for idx, tf in enumerate(self.term_freqs):
+            chunk = self.chunks[idx]
+            if source_hint_lower:
+                title_path = (chunk.title + " " + str(chunk.metadata.get("path", ""))).lower()
+                if source_hint_lower not in title_path and PathSafe.basename(source_hint_lower) not in title_path:
+                    continue
+            if page_hint is not None:
+                if chunk.page_start is None:
+                    continue
+                if not (chunk.page_start <= page_hint <= (chunk.page_end or chunk.page_start)):
+                    # Keep adjacent chunks for page-spanning section answers.
+                    if abs(chunk.page_start - page_hint) > 1:
+                        continue
+            score = 0.0
+            dl = self.doc_lens[idx] or 1
+            for term in q_terms:
+                if term not in tf:
+                    continue
+                freq = tf[term]
+                denom = freq + self.k1 * (1 - self.b + self.b * dl / max(self.avgdl, 1e-6))
+                score += self.idf.get(term, 0.0) * (freq * (self.k1 + 1)) / denom
+            chunk_text_lower = chunk.text.lower()
+            if "table" in query_lower or "表" in query:
+                if "table" in chunk.chunk_type or "table" in chunk_text_lower or "表" in chunk.text:
+                    score *= 1.35
+                if "table" in chunk.chunk_type:
+                    score += 10.0
+            if "图" in query or "figure" in query_lower or "fig" in query_lower:
+                if "figure" in chunk.chunk_type or "图" in chunk.text or "fig" in chunk_text_lower:
+                    score *= 1.35
+                if "figure" in chunk.chunk_type:
+                    score += 8.0
+            if "摘要" in query or "abstract" in query_lower:
+                if "abstract" in chunk_text_lower or "摘要" in chunk.text:
+                    score *= 1.2
+                if chunk.page_start == 1:
+                    score += 20.0
+                if "结果" in query and "results" in chunk_text_lower and re.search(r"(ci|cardiac index|⌬ci|δci|ΔCI|l/min)", chunk.text, re.I):
+                    score += 20.0
+            if label_texts:
+                compact = chunk_text_lower.replace(" ", "")
+                if any(label in compact for label in label_texts):
+                    score += 12.0
+                elif any(label.replace("figure", "fig") in compact for label in label_texts):
+                    score += 8.0
+            if page_hint is not None and chunk.page_start == page_hint:
+                score *= 1.25
+            if score > 0:
+                scores.append((score, idx))
+        scores.sort(reverse=True)
+        return [
+            {
+                "score": round(score, 6),
+                "chunk": asdict(self.chunks[idx]),
+            }
+            for score, idx in scores[:top_k]
+        ]
+
+
+class PathSafe:
+    @staticmethod
+    def basename(value: str) -> str:
+        value = value.replace("\\", "/")
+        return value.rsplit("/", 1)[-1].removesuffix(".pdf")
