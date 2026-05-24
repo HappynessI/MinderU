@@ -3,7 +3,7 @@
 MinderU 面向“基于 MinerU 的医疗文献高质量知识库（RAG）”赛题，提供从医疗 PDF 到可追溯问答的端到端原型：
 
 ```text
-PDF / MinerU JSON -> 结构化元素 -> 医学语义切片 -> 本地索引 -> 检索问答 -> API / 评测报告
+PDF / MinerU JSON -> 结构化元素 -> 医学语义切片 -> 本地索引 -> 检索问答 -> Web Demo / API / 评测报告
 ```
 
 第一版默认零重依赖运行：只要求系统已有 `pdfinfo` / `pdftotext`。如果已有 MinerU 输出，可通过 `--mineru-dir` 接入 `content_list.json`，保留更完整的表格、图片、bbox 和阅读顺序信息。
@@ -43,7 +43,7 @@ python3 -m minderu.cli query \
   --question "请根据输入的文献内容，提取摘要中的结果部分内容"
 ```
 
-启动 API：
+启动 Web Demo / API：
 
 ```bash
 python3 -m minderu.cli api --index data/runs/sample_kb/index.json --host 127.0.0.1 --port 8000
@@ -53,6 +53,8 @@ curl -s -X POST http://127.0.0.1:8000/query \
   -d '{"question":"提取第2页问题四的答案","source_hint":"子宫内膜异位症超声评估中国专家共识.pdf"}'
 ```
 
+浏览器打开 `http://127.0.0.1:8000/` 即可使用简约风格 Web Demo。Demo 会从 `/documents` 读取当前知识库文献列表，并通过 `/query` 返回抽取式答案和 citations。
+
 ## 已覆盖能力
 
 - 复杂版面：按页解析双栏/多栏文本，并用表格/图注启发式补充结构元素。
@@ -61,7 +63,7 @@ curl -s -X POST http://127.0.0.1:8000/query \
 - 可追溯检索：每个 chunk 保留文献名、页码、元素类型、section path、element id。
 - 样例评测：自动读取赛事样例 Excel，输出 `sample_eval.md/json/jsonl`。
 - 盲评模式：默认不使用样例来源列作为检索过滤，报告 Top-3 来源命中。
-- 零依赖 API：基于标准库 HTTP server 暴露 `/health` 和 `/query`。
+- 零依赖 Web/API：基于标准库 HTTP server 提供 `/`、`/health`、`/documents` 和 `/query`。
 
 ## 参考依据
 

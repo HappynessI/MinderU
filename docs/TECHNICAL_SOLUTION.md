@@ -65,6 +65,7 @@ Indexing
 
 Serving
   CLI
+  Minimal Web Demo
   Zero-dependency HTTP API
   Sample evaluator
 ```
@@ -158,6 +159,7 @@ scripts/run_sample_pipeline.sh
 ## 6. 工程化说明
 
 - 无网络、无模型依赖时可以跑通全链路。
+- Web Demo 使用标准库 HTTP server 直接托管 `src/minderu/web/index.html`，访问 `/` 或 `/demo` 即可打开；前端通过 `/documents` 读取文献列表，通过 `/query` 查询答案和证据。
 - 大文件和产物不进入 git：`data/runs/`、`data/outputs/` 已忽略。
 - 远端仓库已配置为 `git@github.com:HappynessI/MinderU.git`。
 - 当前 API 不依赖 FastAPI；如需生产部署，可把 `api/server.py` 包装成 FastAPI 服务。

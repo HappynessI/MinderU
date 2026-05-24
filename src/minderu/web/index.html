@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MinderU</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --surface: #ffffff;
+      --line: #dee2ea;
+      --line-soft: #edf0f5;
+      --text: #1f2329;
+      --muted: #646a73;
+      --soft: #8f959e;
+      --blue: #3370ff;
+      --blue-deep: #245bdb;
+      --green: #14a67b;
+      --amber: #b7791f;
+      --shadow: 0 8px 24px rgba(31, 35, 41, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      background: #fbfcff;
+      border-right: 1px solid var(--line);
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 6px;
+      min-height: 36px;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, #3370ff 0 50%, #14a67b 50% 100%);
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 17px;
+    }
+
+    .nav-group {
+      display: grid;
+      gap: 4px;
+    }
+
+    .nav-item {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 0 8px;
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav-item.active {
+      color: var(--blue);
+      background: #eef3ff;
+      font-weight: 600;
+    }
+
+    .dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      border: 1px solid currentColor;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+    }
+
+    .status {
+      margin-top: auto;
+      padding: 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: #edf8f4;
+      color: var(--green);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .main {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 28px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(10px);
+    }
+
+    .title-block {
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    .subtitle {
+      margin-top: 2px;
+      color: var(--soft);
+      font-size: 13px;
+    }
+
+    .workspace {
+      min-width: 0;
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: minmax(360px, 480px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      min-height: 50px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line-soft);
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 650;
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    .form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    select,
+    textarea,
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    select,
+    input {
+      height: 38px;
+      padding: 0 11px;
+    }
+
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+      padding: 10px 11px;
+      line-height: 1.55;
+    }
+
+    select:focus,
+    textarea:focus,
+    input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(51, 112, 255, 0.12);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 12px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 2px;
+    }
+
+    .hint {
+      color: var(--soft);
+      font-size: 12px;
+    }
+
+    .button {
+      height: 38px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--blue);
+      color: white;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      background: var(--blue-deep);
+    }
+
+    .button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .answer {
+      display: grid;
+      gap: 16px;
+    }
+
+    .answer-text {
+      white-space: pre-wrap;
+      line-height: 1.68;
+      font-size: 14px;
+    }
+
+    .empty {
+      min-height: 280px;
+      display: grid;
+      place-items: center;
+      color: var(--soft);
+      text-align: center;
+      padding: 28px;
+    }
+
+    .empty-visual {
+      width: 92px;
+      aspect-ratio: 1;
+      margin: 0 auto 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(135deg, #3370ff, #14a67b) border-box;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 14px;
+    }
+
+    .empty-visual span {
+      border-radius: 5px;
+      background: #eef3ff;
+    }
+
+    .citations {
+      display: grid;
+      gap: 10px;
+    }
+
+    .citation {
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      background: #fcfdff;
+    }
+
+    .citation-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .citation-title {
+      font-weight: 650;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .meta {
+      color: var(--soft);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .snippet {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+      max-height: 88px;
+      overflow: hidden;
+    }
+
+    .toast {
+      color: #9a3412;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+
+      .topbar {
+        padding: 0 16px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand" aria-label="MinderU">
+        <div class="brand-mark">M</div>
+        <div class="brand-title">MinderU</div>
+      </div>
+
+      <nav class="nav-group" aria-label="workspace">
+        <div class="nav-item active"><span class="dot">⌕</span><span>问答工作台</span></div>
+        <div class="nav-item"><span class="dot">▤</span><span>医学文献库</span></div>
+        <div class="nav-item"><span class="dot">◎</span><span>证据追溯</span></div>
+      </nav>
+
+      <div class="status">
+        <div class="status-row"><span>服务状态</span><span class="pill" id="healthPill">检测中</span></div>
+        <div class="status-row"><span>文献数量</span><span id="docCount">-</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="title-block">
+          <h1>医疗文献 RAG Demo</h1>
+          <div class="subtitle">MinderU 知识库问答</div>
+        </div>
+        <span class="pill" id="modePill">Local API</span>
+      </header>
+
+      <section class="workspace">
+        <section class="panel">
+          <div class="panel-head">
+            <div class="panel-title">查询</div>
+          </div>
+          <div class="panel-body">
+            <form class="form" id="queryForm">
+              <div class="field">
+                <label for="sourceSelect">文献</label>
+                <select id="sourceSelect">
+                  <option value="">自动检索</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="questionInput">问题</label>
+                <textarea id="questionInput" placeholder="输入医学文献问题"></textarea>
+              </div>
+
+              <div class="controls">
+                <div class="field">
+                  <label for="sourceHint">文献名过滤</label>
+                  <input id="sourceHint" placeholder="可留空">
+                </div>
+                <div class="field">
+                  <label for="topK">证据数</label>
+                  <input id="topK" type="number" min="1" max="20" value="6">
+                </div>
+              </div>
+
+              <div class="toast" id="toast"></div>
+
+              <div class="actions">
+                <span class="hint" id="latency"></span>
+                <button class="button" id="submitBtn" type="submit" title="提交查询">
+                  <span>↵</span><span>查询</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div class="panel-title">回答</div>
+            <span class="meta" id="answerMeta"></span>
+          </div>
+          <div class="panel-body">
+            <div class="empty" id="emptyState">
+              <div>
+                <div class="empty-visual" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                </div>
+                <div>等待查询</div>
+              </div>
+            </div>
+            <div class="answer" id="answerView" hidden>
+              <div class="answer-text" id="answerText"></div>
+              <div class="citations" id="citations"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const sourceSelect = document.getElementById('sourceSelect');
+    const sourceHint = document.getElementById('sourceHint');
+    const questionInput = document.getElementById('questionInput');
+    const topK = document.getElementById('topK');
+    const form = document.getElementById('queryForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const toast = document.getElementById('toast');
+    const emptyState = document.getElementById('emptyState');
+    const answerView = document.getElementById('answerView');
+    const answerText = document.getElementById('answerText');
+    const citations = document.getElementById('citations');
+    const answerMeta = document.getElementById('answerMeta');
+    const latency = document.getElementById('latency');
+    const healthPill = document.getElementById('healthPill');
+    const docCount = document.getElementById('docCount');
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.toggle('show', Boolean(message));
+    }
+
+    function escapeText(value) {
+      return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
+    }
+
+    function renderAnswer(payload, ms) {
+      emptyState.hidden = true;
+      answerView.hidden = false;
+      answerText.textContent = payload.answer || '';
+      answerMeta.textContent = `${payload.citations?.length || 0} 条证据`;
+      latency.textContent = `${ms} ms`;
+      citations.innerHTML = '';
+
+      for (const cite of payload.citations || []) {
+        const page = cite.page_end && cite.page_end !== cite.page_start
+          ? `p.${cite.page_start}-${cite.page_end}`
+          : `p.${cite.page_start ?? '-'}`;
+        const node = document.createElement('article');
+        node.className = 'citation';
+        node.innerHTML = `
+          <div class="citation-head">
+            <div class="citation-title" title="${escapeText(cite.title)}">${escapeText(cite.title)}</div>
+            <div class="meta">${escapeText(page)} · ${escapeText(cite.chunk_type)} · ${escapeText(cite.score)}</div>
+          </div>
+          <div class="snippet">${escapeText(cite.snippet)}</div>
+        `;
+        citations.appendChild(node);
+      }
+    }
+
+    async function loadDocuments() {
+      try {
+        const [healthRes, docsRes] = await Promise.all([
+          fetch('/health'),
+          fetch('/documents')
+        ]);
+        healthPill.textContent = healthRes.ok ? '在线' : '异常';
+        const docsPayload = await docsRes.json();
+        const docs = docsPayload.documents || [];
+        docCount.textContent = docs.length;
+        for (const doc of docs) {
+          const option = document.createElement('option');
+          option.value = doc.title;
+          option.textContent = `${doc.title} (${doc.pages || '-'} 页)`;
+          sourceSelect.appendChild(option);
+        }
+      } catch (error) {
+        healthPill.textContent = '离线';
+        docCount.textContent = '-';
+      }
+    }
+
+    sourceSelect.addEventListener('change', () => {
+      sourceHint.value = sourceSelect.value;
+    });
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      showToast('');
+      const question = questionInput.value.trim();
+      if (!question) {
+        showToast('请输入问题');
+        return;
+      }
+
+      const started = performance.now();
+      submitBtn.disabled = true;
+      submitBtn.querySelector('span:last-child').textContent = '查询中';
+
+      try {
+        const response = await fetch('/query', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            question,
+            source_hint: sourceHint.value.trim() || undefined,
+            top_k: Number(topK.value || 6)
+          })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || '请求失败');
+        }
+        renderAnswer(payload, Math.round(performance.now() - started));
+      } catch (error) {
+        showToast(error.message || '请求失败');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.querySelector('span:last-child').textContent = '查询';
+      }
+    });
+
+    questionInput.value = '请根据输入的文献内容，提取摘要中的结果部分内容';
+    loadDocuments();
+  </script>
+</body>
+</html>

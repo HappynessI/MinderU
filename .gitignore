@@ -15,6 +15,9 @@ data/raw/
 data/outputs/
 data/indexes/
 data/runs/
+data/MedBench_Agent/
+data/MedBench_LLM/
+data/*.zip
 *.sqlite
 *.db
 *.qdrant/

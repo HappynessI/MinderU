@@ -15,7 +15,9 @@ dev = ["pytest"]
 [project.scripts]
 minderu = "minderu.cli:main"
 
+[tool.setuptools.package-data]
+minderu = ["web/index.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-
