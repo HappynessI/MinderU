@@ -31,18 +31,35 @@ class QueryHandler(BaseHTTPRequestHandler):
         if urlparse(self.path).path != "/query":
             self._json(404, {"error": "not found"})
             return
-        length = int(self.headers.get("Content-Length", "0"))
-        payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self._json(400, {"error": "invalid Content-Length"})
+            return
+        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            self._json(400, {"error": "invalid JSON body"})
+            return
+        if not isinstance(payload, dict):
+            self._json(400, {"error": "JSON body must be an object"})
+            return
         question = str(payload.get("question", "")).strip()
         if not question:
             self._json(400, {"error": "question is required"})
             return
+        try:
+            top_k = int(payload.get("top_k", 6))
+        except (TypeError, ValueError):
+            self._json(400, {"error": "top_k must be an integer"})
+            return
+        top_k = max(1, min(top_k, 20))
         self._json(
             200,
             answer_question(
                 self.index,
                 question,
-                top_k=int(payload.get("top_k", 6)),
+                top_k=top_k,
                 source_hint=payload.get("source_hint"),
             ),
         )

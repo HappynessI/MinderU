@@ -73,7 +73,7 @@ Serving
 
 ### 4.1 解析
 
-- 首选 MinerU JSON：保留 bbox、表格、图片、图注、标题等结构。
+- 首选 MinerU JSON：保留 bbox、表格 HTML、图片路径、图注、标题等结构。
 - 兜底 Poppler：逐页调用 `pdftotext -layout`，解析页文本。
 - 表格启发式：检测多列空格、数字密集的连续行，作为 `table_text`。
 - 图表标题：识别 `图 3`、`Table 1`、`TABLE 5`、`Fig. 1` 等。
@@ -136,6 +136,8 @@ Serving
 scripts/run_sample_pipeline.sh
 ```
 
+默认样例评测采用 blind retrieval，不把 Excel 中的“来源”列传给检索器。`scripts/run_sample_pipeline.sh` 同时输出 `eval_source_hinted/`，该目录使用 `--use-source-hints`，仅用于演示用户已选中文献后的问答模式。
+
 输出：
 
 - `data/runs/sample_kb/index.json`
@@ -178,4 +180,3 @@ scripts/run_sample_pipeline.sh
 - Docling GitHub：https://github.com/docling-project/docling
 - Docling technical report：https://research.ibm.com/publications/docling-technical-report
 - Medical Graph RAG：https://aclanthology.org/2025.acl-long.1381.pdf
-

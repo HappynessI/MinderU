@@ -48,6 +48,30 @@ class BM25Index:
             df.update(set(toks))
         n = max(1, len(chunks))
         self.idf = {term: math.log(1 + (n - freq + 0.5) / (freq + 0.5)) for term, freq in df.items()}
+        self.label_pages = self._build_label_pages()
+
+    def _build_label_pages(self) -> dict[str, set[tuple[str, int]]]:
+        pages: dict[str, set[tuple[str, int]]] = {}
+        label_re = re.compile(r"(?:table|fig(?:ure)?|图|表)\s*([0-9一二三四五六七八九十]+)", re.I)
+        line_label_re = re.compile(r"^\s*(?:table|fig(?:ure)?|图|表)\s*([0-9一二三四五六七八九十]+)", re.I | re.M)
+        for chunk in self.chunks:
+            if chunk.page_start is None:
+                continue
+            if "caption" in chunk.chunk_type:
+                matches = list(label_re.finditer(chunk.text))
+            else:
+                matches = list(line_label_re.finditer(chunk.text))
+            for match in matches:
+                num = match.group(1)
+                raw = match.group(0).lower().replace(" ", "")
+                labels = {raw}
+                if raw.startswith("fig") or raw.startswith("figure") or raw.startswith("图"):
+                    labels.update({f"fig{num}", f"figure{num}", f"图{num}"})
+                if raw.startswith("table") or raw.startswith("表"):
+                    labels.update({f"table{num}", f"表{num}"})
+                for label in labels:
+                    pages.setdefault(label, set()).add((chunk.doc_id, chunk.page_start))
+        return pages
 
     def search(
         self,
@@ -118,6 +142,14 @@ class BM25Index:
                     score += 12.0
                 elif any(label.replace("figure", "fig") in compact for label in label_texts):
                     score += 8.0
+                if chunk.page_start is not None and any(
+                    (chunk.doc_id, chunk.page_start) in self.label_pages.get(label, set())
+                    for label in label_texts
+                ):
+                    if "table" in chunk.chunk_type or "table" in query_lower or "表" in query:
+                        score += 22.0
+                    else:
+                        score += 8.0
             if page_hint is not None and chunk.page_start == page_hint:
                 score *= 1.25
             if score > 0:

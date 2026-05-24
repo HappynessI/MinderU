@@ -11,3 +11,4 @@ OUT="$ROOT/data/runs/sample_kb"
 python3 -m minderu.cli ingest --input "$PDF_DIR" --output "$OUT"
 python3 -m minderu.cli inspect --index "$OUT/index.json"
 python3 -m minderu.cli eval --index "$OUT/index.json" --samples-xlsx "$XLSX" --output "$OUT/eval"
+python3 -m minderu.cli eval --index "$OUT/index.json" --samples-xlsx "$XLSX" --output "$OUT/eval_source_hinted" --use-source-hints

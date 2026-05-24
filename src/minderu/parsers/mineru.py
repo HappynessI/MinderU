@@ -8,24 +8,54 @@ from minderu.utils import read_json, stable_id
 
 
 def _block_text(block: dict[str, Any]) -> str:
-    for key in ("text", "content", "html", "md", "markdown"):
+    parts: list[str] = []
+    for key in ("table_caption", "image_caption", "img_caption", "caption"):
+        value = block.get(key)
+        if isinstance(value, list):
+            parts.extend(str(item).strip() for item in value if str(item).strip())
+        elif isinstance(value, str) and value.strip():
+            parts.append(value.strip())
+    for key in ("text", "content", "html", "table_body", "table_html", "md", "markdown"):
         value = block.get(key)
         if isinstance(value, str) and value.strip():
-            return value.strip()
+            parts.append(value.strip())
     if isinstance(block.get("spans"), list):
-        return "".join(str(span.get("content", span.get("text", ""))) for span in block["spans"]).strip()
-    return ""
+        span_text = "".join(str(span.get("content", span.get("text", ""))) for span in block["spans"]).strip()
+        if span_text:
+            parts.append(span_text)
+    for key in ("img_path", "image_path", "image_url"):
+        value = block.get(key)
+        if isinstance(value, str) and value.strip():
+            parts.append(f"[image: {value.strip()}]")
+    return "\n\n".join(dict.fromkeys(parts))
 
 
 def _block_type(block: dict[str, Any]) -> str:
     raw = str(block.get("type") or block.get("category") or block.get("block_type") or "text").lower()
-    if "table" in raw:
+    if "table" in raw or block.get("table_body") or block.get("table_html"):
         return "table"
-    if "image" in raw or "figure" in raw:
+    if "image" in raw or "figure" in raw or block.get("img_path") or block.get("image_path"):
         return "figure"
     if "title" in raw:
         return "title"
     return raw or "text"
+
+
+def _page_number(block: dict[str, Any]) -> int | None:
+    if "page_idx" in block:
+        try:
+            return int(block["page_idx"]) + 1
+        except (TypeError, ValueError):
+            return None
+    for key in ("page", "page_id", "page_no", "page_num"):
+        if key not in block:
+            continue
+        try:
+            value = int(block[key])
+        except (TypeError, ValueError):
+            return None
+        return value if value >= 1 else value + 1
+    return None
 
 
 def _iter_content_blocks(payload: Any) -> list[dict[str, Any]]:
@@ -68,8 +98,7 @@ def load_mineru_document(json_path: str | Path, source_pdf: str | Path | None = 
         text = _block_text(block)
         if not text:
             continue
-        page = block.get("page_idx", block.get("page", block.get("page_id")))
-        page_num = int(page) + 1 if isinstance(page, int) and page == 0 else int(page) if isinstance(page, int) else None
+        page_num = _page_number(block)
         if page_num:
             pages = max(pages, page_num)
         bbox = block.get("bbox") or block.get("poly")
@@ -87,4 +116,3 @@ def load_mineru_document(json_path: str | Path, source_pdf: str | Path | None = 
         )
     doc.pages = pages
     return doc
-

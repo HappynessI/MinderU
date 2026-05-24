@@ -7,7 +7,7 @@ from minderu.utils import stable_id
 
 
 EN_SECTION_RE = re.compile(
-    r"^\s*(abstract|objectives?|background|methods?|results?|conclusions?|introduction|materials and methods|discussion|references)\b[:：.]?\s*(.*)$",
+    r"^\s*(abstract|objectives?|background|methods?|results?|conclusions?|introduction|materials and methods|discussion|references|primary outcomes?|secondary outcomes?|subgroup analysis|sensitivity analysis|limitations?)\b[:：.]?\s*(.*)$",
     re.IGNORECASE,
 )
 CN_SECTION_RE = re.compile(r"^\s*(摘要|目的|方法|结果|结论|问题[一二三四五六七八九十\d]+[、.．]|[一二三四五六七八九十\d]+[、.．])\s*(.*)$")
@@ -33,15 +33,38 @@ def _heading(line: str) -> str | None:
     return None
 
 
+def _structural_heading(line: str) -> str | None:
+    s = line.strip()
+    if not s or len(s) > 120:
+        return None
+    for pattern in (EN_SECTION_RE, CN_SECTION_RE, NUMBERED_RE):
+        m = pattern.match(s)
+        if m:
+            return s
+    return None
+
+
 def _split_paragraphs(text: str) -> list[str]:
     text = text.replace("\r\n", "\n")
     parts = re.split(r"\n\s*\n|(?<=。)\s*(?=问题[一二三四五六七八九十\d]+[、.．])", text)
     out: list[str] = []
     for part in parts:
-        lines = [ln.rstrip() for ln in part.splitlines() if ln.strip()]
-        if lines:
-            out.append("\n".join(lines))
+        out.extend(_split_heading_units([ln.rstrip() for ln in part.splitlines() if ln.strip()]))
     return out
+
+
+def _split_heading_units(lines: list[str]) -> list[str]:
+    units: list[str] = []
+    current: list[str] = []
+    for line in lines:
+        if current and _structural_heading(line):
+            units.append("\n".join(current))
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        units.append("\n".join(current))
+    return units
 
 
 def _pack_units(units: list[str], max_chars: int) -> list[str]:
@@ -86,7 +109,8 @@ def _chunk_element(doc: DocumentRecord, element: Element, max_chars: int) -> lis
         ]
 
     units = _split_paragraphs(element.text)
-    packed = _pack_units(units, max_chars=max_chars)
+    has_section_boundaries = any(_structural_heading(unit.splitlines()[0]) for unit in units[1:] if unit.splitlines())
+    packed = units if has_section_boundaries else _pack_units(units, max_chars=max_chars)
     chunks: list[Chunk] = []
     for idx, text in enumerate(packed):
         chunks.append(
@@ -132,4 +156,3 @@ def chunk_document(doc: DocumentRecord, max_chars: int = 1800) -> list[Chunk]:
     for element in doc.elements:
         chunks.extend(_chunk_element(doc, element, max_chars=max_chars))
     return chunks
-

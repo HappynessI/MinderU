@@ -39,6 +39,15 @@ def _targeted_extract(question: str, text: str, chunk_type: str, page_start: int
     q = question.lower()
     compact = re.sub(r"[ \t]+", " ", text)
     if "table" in q or "表格" in question or chunk_type.startswith("table"):
+        if chunk_type == "table_caption":
+            return []
+        label = re.search(r"(?:table|fig(?:ure)?|图|表)\s*([0-9一二三四五六七八九十]+)", question, re.I)
+        if label and re.search(
+            rf"^\s*(?:table|fig(?:ure)?|图|表)\s*{re.escape(label.group(1))}\b",
+            text,
+            re.I | re.M,
+        ):
+            return [_clean_snippet(compact, max_chars=1800)]
         if not chunk_type.startswith("table") and len(compact) > 1000:
             return []
         return [_clean_snippet(compact, max_chars=1600)]

@@ -72,7 +72,7 @@ def query(args: argparse.Namespace) -> None:
 
 
 def evaluate(args: argparse.Namespace) -> None:
-    results = evaluate_sample_questions(args.index, args.samples_xlsx, args.output)
+    results = evaluate_sample_questions(args.index, args.samples_xlsx, args.output, use_source_hints=args.use_source_hints)
     print(f"evaluated {len(results)} questions -> {args.output}")
 
 
@@ -109,6 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--index", required=True)
     p.add_argument("--samples-xlsx", required=True)
     p.add_argument("--output", required=True)
+    p.add_argument("--use-source-hints", action="store_true", help="Use expected source column as a document filter for demo mode.")
     p.set_defaults(func=evaluate)
 
     p = sub.add_parser("inspect", help="Print index statistics.")
