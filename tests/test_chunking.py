@@ -2,7 +2,7 @@ import unittest
 
 from minderu.chunking import chunk_document
 from minderu.indexing.bm25 import BM25Index
-from minderu.schema import DocumentRecord, Element
+from minderu.schema import Chunk, DocumentRecord, Element
 
 
 class ChunkingTest(unittest.TestCase):
@@ -45,6 +45,44 @@ class ChunkingTest(unittest.TestCase):
         hits = BM25Index(chunks).search("提取图5中的表格数据", top_k=2)
         self.assertTrue(hits)
         self.assertEqual(hits[0]["chunk"]["page_start"], 2)
+
+    def test_split_table_label_beats_same_number_figure_for_table_query(self):
+        chunks = [
+            Chunk(
+                "fig",
+                "zh",
+                "ultrasound",
+                "Document: ultrasound\n\n图 5 双侧卵巢子宫内膜异位囊肿 接吻征 二维灰阶声像图",
+                "figure_caption",
+                3,
+                3,
+            ),
+            Chunk("label", "todo", "todo1992", "Document: todo1992\nSection: Table\n\nTABLE", "text", 3, 3),
+            Chunk(
+                "header",
+                "todo",
+                "todo1992",
+                "Document: todo1992\nSection: Table\n\n5. Urea cycle enzyme deficiencies treated with OLT",
+                "text",
+                3,
+                3,
+            ),
+            Chunk(
+                "body",
+                "todo",
+                "todo1992",
+                "Document: todo1992\nSection: Table\n\nPatient Center OLT deficiency Alive dead Mental state Reference",
+                "table_text",
+                3,
+                3,
+            ),
+        ]
+
+        hits = BM25Index(chunks).search("请根据输入的文献内容，提取图5中的表格数据", top_k=2)
+
+        self.assertTrue(hits)
+        self.assertEqual(hits[0]["chunk"]["title"], "todo1992")
+        self.assertEqual(hits[0]["chunk"]["chunk_type"], "table_text")
 
     def test_page_text_splits_multiple_medical_sections(self):
         doc = DocumentRecord(

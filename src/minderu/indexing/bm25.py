@@ -54,24 +54,46 @@ class BM25Index:
         pages: dict[str, set[tuple[str, int]]] = {}
         label_re = re.compile(r"(?:table|fig(?:ure)?|图|表)\s*([0-9一二三四五六七八九十]+)", re.I)
         line_label_re = re.compile(r"^\s*(?:table|fig(?:ure)?|图|表)\s*([0-9一二三四五六七八九十]+)", re.I | re.M)
-        for chunk in self.chunks:
+        for idx, chunk in enumerate(self.chunks):
             if chunk.page_start is None:
                 continue
+            label_source = " ".join(str(v) for v in chunk.metadata.values() if isinstance(v, str))
+            searchable_text = f"{chunk.text}\n{label_source}"
             if "caption" in chunk.chunk_type:
-                matches = list(label_re.finditer(chunk.text))
+                matches = list(label_re.finditer(searchable_text))
             else:
-                matches = list(line_label_re.finditer(chunk.text))
+                matches = list(line_label_re.finditer(searchable_text))
             for match in matches:
                 num = match.group(1)
                 raw = match.group(0).lower().replace(" ", "")
-                labels = {raw}
-                if raw.startswith("fig") or raw.startswith("figure") or raw.startswith("图"):
-                    labels.update({f"fig{num}", f"figure{num}", f"图{num}"})
-                if raw.startswith("table") or raw.startswith("表"):
-                    labels.update({f"table{num}", f"表{num}"})
-                for label in labels:
+                for label in self._label_aliases(raw, num):
                     pages.setdefault(label, set()).add((chunk.doc_id, chunk.page_start))
+
+            # OCR sometimes splits "TABLE" and "5. ..." into adjacent chunks.
+            # Rejoin those lightweight label fragments so the table body page can be boosted.
+            if idx + 1 >= len(self.chunks):
+                continue
+            nxt = self.chunks[idx + 1]
+            if nxt.doc_id != chunk.doc_id or nxt.page_start != chunk.page_start:
+                continue
+            body = _body_text(chunk.text).strip().lower()
+            next_body = _body_text(nxt.text).strip()
+            if body in {"table", "figure", "fig", "图", "表"}:
+                m = re.match(r"([0-9一二三四五六七八九十]+)[.、．]?\s+", next_body)
+                if m:
+                    raw = f"{body}{m.group(1)}"
+                    for label in self._label_aliases(raw, m.group(1)):
+                        pages.setdefault(label, set()).add((chunk.doc_id, chunk.page_start))
         return pages
+
+    @staticmethod
+    def _label_aliases(raw: str, num: str) -> set[str]:
+        labels = {raw}
+        if raw.startswith("fig") or raw.startswith("figure") or raw.startswith("图"):
+            labels.update({f"fig{num}", f"figure{num}", f"图{num}"})
+        if raw.startswith("table") or raw.startswith("表"):
+            labels.update({f"table{num}", f"表{num}"})
+        return labels
 
     def search(
         self,
@@ -84,6 +106,9 @@ class BM25Index:
         q_terms = tokenize(expanded_query)
         scores: list[tuple[float, int]] = []
         query_lower = query.lower()
+        wants_table = "table" in query_lower or "表格" in query or re.search(r"(?<!图)表\s*[0-9一二三四五六七八九十]?", query)
+        wants_figure = "图" in query or "figure" in query_lower or "fig" in query_lower
+        mixed_visual_table = bool(wants_table and wants_figure)
         source_hint_lower = source_hint.lower() if source_hint else None
         label_match = re.search(r"(?:table|fig(?:ure)?|图|表)\s*([0-9一二三四五六七八九十]+)", query, re.I)
         label_texts: list[str] = []
@@ -97,6 +122,8 @@ class BM25Index:
                     label_texts.append(f"table{num}")
             if "表" in prefix:
                 label_texts.extend([f"table{num}"])
+        if mixed_visual_table:
+            label_texts = [label for label in label_texts if label.startswith("table") or label.startswith("表")]
         for idx, tf in enumerate(self.term_freqs):
             chunk = self.chunks[idx]
             if source_hint_lower:
@@ -119,16 +146,18 @@ class BM25Index:
                 denom = freq + self.k1 * (1 - self.b + self.b * dl / max(self.avgdl, 1e-6))
                 score += self.idf.get(term, 0.0) * (freq * (self.k1 + 1)) / denom
             chunk_text_lower = chunk.text.lower()
-            if "table" in query_lower or "表" in query:
+            if wants_table:
                 if "table" in chunk.chunk_type or "table" in chunk_text_lower or "表" in chunk.text:
                     score *= 1.35
                 if "table" in chunk.chunk_type:
                     score += 10.0
-            if "图" in query or "figure" in query_lower or "fig" in query_lower:
+            if wants_figure and not mixed_visual_table:
                 if "figure" in chunk.chunk_type or "图" in chunk.text or "fig" in chunk_text_lower:
                     score *= 1.35
                 if "figure" in chunk.chunk_type:
                     score += 8.0
+            elif mixed_visual_table and "figure" in chunk.chunk_type:
+                score *= 0.75
             if "摘要" in query or "abstract" in query_lower:
                 if "abstract" in chunk_text_lower or "摘要" in chunk.text:
                     score *= 1.2
@@ -142,12 +171,15 @@ class BM25Index:
                     score += 12.0
                 elif any(label.replace("figure", "fig") in compact for label in label_texts):
                     score += 8.0
-                if chunk.page_start is not None and any(
+                on_label_page = chunk.page_start is not None and any(
                     (chunk.doc_id, chunk.page_start) in self.label_pages.get(label, set())
                     for label in label_texts
-                ):
+                )
+                if on_label_page:
                     if "table" in chunk.chunk_type or "table" in query_lower or "表" in query:
-                        score += 22.0
+                        score += 45.0 if mixed_visual_table else 28.0
+                        if mixed_visual_table and chunk.chunk_type == "table_text":
+                            score += 20.0
                     else:
                         score += 8.0
             if page_hint is not None and chunk.page_start == page_hint:
@@ -169,3 +201,7 @@ class PathSafe:
     def basename(value: str) -> str:
         value = value.replace("\\", "/")
         return value.rsplit("/", 1)[-1].removesuffix(".pdf")
+
+
+def _body_text(text: str) -> str:
+    return re.sub(r"^(?:Document|Section): .+\n", "", text, flags=re.M).strip()
