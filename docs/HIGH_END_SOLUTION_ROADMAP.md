@@ -463,3 +463,17 @@ RAG 层：
 2. Evidence packer：合并相邻 chunk，按 page/table/figure 组织 evidence package。
 3. Cross-encoder reranker 可选路径。
 4. Page crop/image evidence API。
+
+第三批已完成：
+
+- 新增 `minderu eval-retrieval`，支持 XLSX/JSONL 标注集和可配置 hit@k。
+- 抽取公共 retrieval metrics，样例评测和独立检索评测共用 Source/Page/Type/MRR 指标。
+- `/query` 增加 `evidence_packages`，将同页同类型 citation 组织为展示用 evidence package。
+- `--reranker none|rules|cross-encoder` 和 `--reranker-model` 贯通 query/eval/API。
+- 新增 graph evidence API：`/evidence/{id}`、`/documents/{doc_id}/pages/{page}`、`/tables/{id}`。
+
+下一批优先实现：
+
+1. 真正的 page crop/image asset 服务，基于 MinerU 页面图和 bbox 返回可视证据。
+2. Qdrant backend，用 payload filter 替代本地内存 dense search。
+3. Grounded LLM synthesis，并用 citation validator 拦截无证据生成。

@@ -1,10 +1,20 @@
 from __future__ import annotations
 
+from functools import lru_cache
 import re
 from typing import Any
 
 
-def rerank_evidence(question: str, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def rerank_evidence(
+    question: str,
+    hits: list[dict[str, Any]],
+    mode: str = "rules",
+    model_name: str | None = None,
+) -> list[dict[str, Any]]:
+    if mode == "none":
+        return hits
+    if mode == "cross-encoder" and model_name:
+        return _cross_encoder_rerank(question, hits, model_name)
     expected = expected_evidence_type(question)
     if expected is None:
         return hits
@@ -32,6 +42,32 @@ def rerank_evidence(question: str, hits: list[dict[str, Any]]) -> list[dict[str,
         updated["reranker"] = "evidence_type_rules"
         reranked.append(updated)
     return reranked
+
+
+def _cross_encoder_rerank(question: str, hits: list[dict[str, Any]], model_name: str) -> list[dict[str, Any]]:
+    model = _load_cross_encoder(model_name)
+    pairs = [(question, hit["chunk"].get("metadata", {}).get("semantic_repr") or hit["chunk"].get("text", "")) for hit in hits]
+    scores = model.predict(pairs)
+    scored: list[tuple[float, int, dict[str, Any]]] = []
+    for idx, (score, hit) in enumerate(zip(scores, hits)):
+        updated = dict(hit)
+        updated["score"] = round(float(score), 6)
+        updated["reranker"] = "cross_encoder"
+        scored.append((float(score), -idx, updated))
+    scored.sort(reverse=True)
+    return [hit for _, _, hit in scored]
+
+
+@lru_cache(maxsize=4)
+def _load_cross_encoder(model_name: str) -> Any:
+    try:
+        from sentence_transformers import CrossEncoder
+    except ImportError as exc:
+        raise RuntimeError(
+            "Cross-encoder reranking requires sentence-transformers. "
+            "Install the semantic optional dependencies or use --reranker rules."
+        ) from exc
+    return CrossEncoder(model_name)
 
 
 def expected_evidence_type(question: str) -> str | None:

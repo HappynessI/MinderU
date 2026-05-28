@@ -66,6 +66,19 @@ python3 -m minderu.cli api \
   --embedding-model paraphrase-multilingual-MiniLM-L12-v2
 ```
 
+Optional cross-encoder reranking:
+
+```bash
+python3 -m minderu.cli api \
+  --index data/runs/sample_kb/index.json \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --retriever hybrid \
+  --embedding-model paraphrase-multilingual-MiniLM-L12-v2 \
+  --reranker cross-encoder \
+  --reranker-model cross-encoder/ms-marco-MiniLM-L-6-v2
+```
+
 Smoke test:
 
 ```bash
@@ -73,6 +86,15 @@ curl -s http://127.0.0.1:8000/health
 curl -s -X POST http://127.0.0.1:8000/query \
   -H 'Content-Type: application/json' \
   -d '{"question":"请根据输入的文献内容，提取摘要中的结果部分内容","source_hint":"seyfarth2008.pdf"}'
+```
+
+Retrieval-only evaluation:
+
+```bash
+python3 -m minderu.cli eval-retrieval \
+  --index data/runs/sample_kb/index.json \
+  --samples-xlsx "医疗赛题/相关样例/医疗文档问答示例 - MinerU.xlsx" \
+  --output data/runs/sample_kb/retrieval_eval
 ```
 
 ## Operational Notes

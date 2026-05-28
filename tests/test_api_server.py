@@ -35,7 +35,16 @@ class ApiServerTest(unittest.TestCase):
                         text="Results showed lower mortality and improved cardiac index.",
                         page_start=1,
                         page_end=1,
-                    )
+                    ),
+                    Element(
+                        element_id="e2",
+                        doc_id="doc-1",
+                        type="table",
+                        text="Table 1. Baseline\nAge 60",
+                        page_start=2,
+                        page_end=2,
+                        metadata={"table_html": "<table><tr><td>Age</td></tr></table>"},
+                    ),
                 ],
             )
         ]
@@ -49,7 +58,18 @@ class ApiServerTest(unittest.TestCase):
                 page_start=1,
                 page_end=1,
                 element_ids=["e1"],
-            )
+            ),
+            Chunk(
+                chunk_id="t1",
+                doc_id="doc-1",
+                title="demo-paper",
+                text="Document: demo-paper\n\nTable 1. Baseline\nAge 60",
+                chunk_type="table",
+                page_start=2,
+                page_end=2,
+                element_ids=["e2"],
+                metadata={"evidence_type": "table", "table_html": "<table><tr><td>Age</td></tr></table>"},
+            ),
         ]
         configure_handler(build_index(docs, chunks, root))
 
@@ -116,6 +136,25 @@ class ApiServerTest(unittest.TestCase):
         self.assertIn("mortality", payload["answer"])
         self.assertEqual(len(payload["citations"]), 1)
         self.assertIn("evidence_id", payload["citations"][0])
+        self.assertIn("evidence_packages", payload)
+
+    def test_evidence_endpoint_returns_graph_evidence(self) -> None:
+        payload = self._get_json("/evidence/c1")
+
+        self.assertEqual(payload["evidence"]["chunk_id"], "c1")
+        self.assertEqual(payload["evidence"]["doc_id"], "doc-1")
+
+    def test_page_endpoint_returns_blocks_and_evidence(self) -> None:
+        payload = self._get_json("/documents/doc-1/pages/2")
+
+        self.assertEqual(payload["page"], 2)
+        self.assertEqual(payload["blocks"][0]["block_id"], "e2")
+        self.assertEqual(payload["evidence"][0]["chunk_id"], "t1")
+
+    def test_table_endpoint_returns_table_asset(self) -> None:
+        payload = self._get_json("/tables/t1")
+
+        self.assertIn("<table>", payload["table"]["table_html"])
 
 
 if __name__ == "__main__":

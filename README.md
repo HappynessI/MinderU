@@ -49,6 +49,7 @@ python3 -m minderu.cli query \
 python3 -m minderu.cli query \
   --index data/runs/sample_kb/index.json \
   --retriever hybrid \
+  --reranker rules \
   --question "请根据输入的文献内容，提取图5中的表格数据"
 ```
 
@@ -59,7 +60,19 @@ python3 -m minderu.cli query \
   --index data/runs/sample_kb/index.json \
   --retriever hybrid \
   --embedding-model paraphrase-multilingual-MiniLM-L12-v2 \
+  --reranker cross-encoder \
+  --reranker-model cross-encoder/ms-marco-MiniLM-L-6-v2 \
   --question "请根据输入的文献内容，提取摘要中的结果部分内容"
+```
+
+独立检索评测：
+
+```bash
+python3 -m minderu.cli eval-retrieval \
+  --index data/runs/sample_kb/index.json \
+  --samples-xlsx "医疗赛题/相关样例/医疗文档问答示例 - MinerU.xlsx" \
+  --output data/runs/sample_kb/retrieval_eval \
+  --top-k-values 1,3,5
 ```
 
 启动 Web Demo / API：
@@ -81,6 +94,8 @@ curl -s -X POST http://127.0.0.1:8000/query \
 - 语义切片：识别摘要、Results、Methods、中文“问题一/二/三/四”等医学文献结构，不按固定字数硬切。
 - 可追溯检索：每个 chunk 保留文献名、页码、元素类型、section path、element id。
 - 混合检索骨架：支持 BM25 + 可选 dense embedding + RRF；无 dense 依赖时自动回退 BM25。
+- 证据打包：`/query` 返回 chunk citations 和 evidence packages，便于展示表格/图像/同页证据组。
+- 检索评测：独立输出 Source Hit@k、Evidence Type Hit@k、Page Hit@k 和 MRR。
 - 样例评测：自动读取赛事样例 Excel，输出 `sample_eval.md/json/jsonl`。
 - 盲评模式：默认不使用样例来源列作为检索过滤，报告 Top-3 来源命中。
 - 零依赖 Web/API：基于标准库 HTTP server 提供 `/`、`/health`、`/documents` 和 `/query`。

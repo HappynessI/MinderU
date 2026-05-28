@@ -79,10 +79,12 @@ The server-side retriever is selected at startup:
 python3 -m minderu.cli api \
   --index data/runs/sample_kb/index.json \
   --retriever hybrid \
-  --embedding-model paraphrase-multilingual-MiniLM-L12-v2
+  --embedding-model paraphrase-multilingual-MiniLM-L12-v2 \
+  --reranker cross-encoder \
+  --reranker-model cross-encoder/ms-marco-MiniLM-L-6-v2
 ```
 
-`--retriever hybrid` supports BM25 + optional dense retrieval + reciprocal rank fusion. If `--embedding-model` is omitted, it preserves the zero-dependency BM25 behavior.
+`--retriever hybrid` supports BM25 + optional dense retrieval + reciprocal rank fusion. `--reranker` supports `none`, `rules`, and optional `cross-encoder`. If model arguments are omitted, the API preserves the zero-dependency BM25 + rules behavior.
 
 Response:
 
@@ -108,6 +110,7 @@ Response:
     }
   ],
   "retrieved": [],
+  "evidence_packages": [],
   "source_hint": "seyfarth2008.pdf"
 }
 ```
@@ -120,6 +123,18 @@ Citation fields:
 | `evidence_type` | Normalized evidence class such as `text`, `table_text`, `figure_caption`, or MinerU block type. |
 | `bbox` | Optional source bounding box when provided by MinerU. |
 | `assets` | Optional table/image assets such as `table_html`, `markdown`, `image_path`, or captions. |
+
+## Evidence Graph Endpoints
+
+```http
+GET /evidence/{evidence_id}
+GET /documents/{doc_id}/pages/{page}
+GET /tables/{evidence_id}
+```
+
+- `/evidence/{evidence_id}` returns the stored evidence span from the index graph.
+- `/documents/{doc_id}/pages/{page}` returns page blocks and evidence spans.
+- `/tables/{evidence_id}` returns `table_html` or `markdown` assets when present.
 
 ## Error Responses
 

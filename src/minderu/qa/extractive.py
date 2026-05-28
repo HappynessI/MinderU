@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from minderu.evidence import pack_evidence
 from minderu.indexing.bm25 import BM25Index, tokenize
 from minderu.rerank import rerank_evidence
 
@@ -69,9 +70,18 @@ def _page_hint(question: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def answer_question(index: BM25Index, question: str, top_k: int = 6, source_hint: str | None = None) -> dict[str, Any]:
-    hits = index.search(question, top_k=max(top_k * 2, top_k), source_hint=source_hint, page_hint=_page_hint(question))
-    hits = rerank_evidence(question, hits)[:top_k]
+def answer_question(
+    index: BM25Index,
+    question: str,
+    top_k: int = 6,
+    source_hint: str | None = None,
+    reranker: str = "rules",
+    reranker_model: str | None = None,
+    rerank_pool: int = 50,
+) -> dict[str, Any]:
+    pool = max(top_k, min(max(rerank_pool, top_k), max(top_k * 4, rerank_pool)))
+    hits = index.search(question, top_k=pool, source_hint=source_hint, page_hint=_page_hint(question))
+    hits = rerank_evidence(question, hits, mode=reranker, model_name=reranker_model)[:top_k]
     if not hits:
         return {
             "answer": "未检索到足够证据。请确认文献已经入库，或提高解析质量后重建索引。",
@@ -118,7 +128,14 @@ def answer_question(index: BM25Index, question: str, top_k: int = 6, source_hint
     answer = "\n".join(f"- {part}" for part in answer_source[:4])
     if re.search(r"图|figure|fig", question, re.I):
         answer += "\n\n注意：若原文目标是流程图/图片，本地零依赖解析只能定位页码、图注或附近文本；完整图像内容需要 MinerU OCR/VLM 输出或页面截图证据。"
-    return {"answer": answer, "citations": evidence[:top_k], "retrieved": hits, "source_hint": source_hint}
+    citations = evidence[:top_k]
+    return {
+        "answer": answer,
+        "citations": citations,
+        "evidence_packages": pack_evidence(citations),
+        "retrieved": hits,
+        "source_hint": source_hint,
+    }
 
 
 def _assets(metadata: dict[str, Any]) -> dict[str, Any]:

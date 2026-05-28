@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import unittest
 
+from unittest.mock import patch
+
 from minderu.indexing.hybrid import HybridIndex
 from minderu.rerank import rerank_evidence
 from minderu.schema import Chunk
@@ -20,6 +22,14 @@ class FakeEncoder:
         if "renal" in lowered or "kidney" in lowered:
             return [0.0, 1.0]
         return [0.1, 0.1]
+
+
+class FakeCrossEncoder:
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+
+    def predict(self, pairs):
+        return [1.0 if "Age 60" in text else 0.1 for _, text in pairs]
 
 
 class HybridIndexTest(unittest.TestCase):
@@ -51,6 +61,16 @@ class HybridIndexTest(unittest.TestCase):
         ]
 
         reranked = rerank_evidence("提取Table 1的表格数据", hits)
+
+        self.assertEqual(reranked[0]["chunk"]["chunk_id"], "table")
+
+    def test_cross_encoder_reranker_can_be_loaded_optionally(self) -> None:
+        hits = [
+            {"score": 10.0, "chunk": {"chunk_id": "text", "chunk_type": "text", "text": "unrelated"}},
+            {"score": 9.0, "chunk": {"chunk_id": "table", "chunk_type": "table_text", "text": "Age 60"}},
+        ]
+        with patch("minderu.rerank._load_cross_encoder", return_value=FakeCrossEncoder("fake")):
+            reranked = rerank_evidence("提取Table 1的表格数据", hits, mode="cross-encoder", model_name="fake")
 
         self.assertEqual(reranked[0]["chunk"]["chunk_id"], "table")
 

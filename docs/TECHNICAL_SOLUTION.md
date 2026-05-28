@@ -65,6 +65,7 @@ Indexing
   Optional dense embedding index
   RRF hybrid fusion
   Evidence-type reranking
+  Optional cross-encoder reranking
   Optional future Qdrant layer
 
 Serving
@@ -104,7 +105,7 @@ Serving
 
 ### 4.3 检索
 
-第一版实现了本地 BM25，并新增 hybrid retrieval 骨架。默认无外部依赖时仍使用 BM25；如果提供 `--embedding-model`，系统会加载 `sentence-transformers`，执行 dense retrieval，并用 RRF 与 BM25 结果融合。BM25 层做了医学样例需要的增强：
+第一版实现了本地 BM25，并新增 hybrid retrieval 骨架。默认无外部依赖时仍使用 BM25；如果提供 `--embedding-model`，系统会加载 `sentence-transformers`，执行 dense retrieval，并用 RRF 与 BM25 结果融合。系统还支持 rule reranker 和可选 cross-encoder reranker。BM25 层做了医学样例需要的增强：
 
 - 中英查询扩展：`摘要 -> abstract/results/conclusions`，`表格 -> table`，`图 -> fig/figure`。
 - 图表编号增强：`图5中的表格数据` 会同时匹配 `Figure 5` 和 `Table 5`。
