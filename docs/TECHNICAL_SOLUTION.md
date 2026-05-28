@@ -163,6 +163,13 @@ scripts/run_sample_pipeline.sh
 - 大文件和产物不进入 git：`data/runs/`、`data/outputs/` 已忽略。
 - 远端仓库已配置为 `git@github.com:HappynessI/MinderU.git`。
 - 当前 API 不依赖 FastAPI；如需生产部署，可把 `api/server.py` 包装成 FastAPI 服务。
+- API、部署和提交清单分别维护在 `docs/API.md`、`docs/DEPLOYMENT.md` 和 `docs/SUBMISSION_CHECKLIST.md`，用于比赛提交和平台适配。
+
+## 6.1 当前提交边界
+
+当前系统是医疗文献 RAG 交付，不是通用医疗大模型或通用 Agent。它适合回答“已入库文献中的内容抽取、表格/图注定位、摘要结果提取、页码可追溯问答”等任务；若 MedBench 使用通用 LLM/Agent benchmark，需要额外接入大模型推理或工具调用规划层。
+
+`source_hint` 只用于“用户已选中文献后提问”的产品形态。无文献提示的 blind retrieval 是系统检索能力评估，不应与 source-hinted demo 混成一个指标。
 
 ## 7. 后续增强建议
 

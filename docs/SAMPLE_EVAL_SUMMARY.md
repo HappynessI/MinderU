@@ -24,8 +24,14 @@ scripts/run_sample_pipeline.sh
 - `data/runs/sample_kb/eval/sample_eval.jsonl`
 - `data/runs/sample_kb/eval_source_hinted/sample_eval.md`
 
+## 当前指标
+
+- Blind retrieval：5/5 个样例 Top-3 来源命中。
+- Source-hinted demo：5/5 个样例 Top-3 来源命中。
+- 第 3 题“图5中的表格数据”已能在 blind 模式下把 `todo1992` 的表格 chunk 排到首位。
+
 ## 当前能力边界
 
 Poppler fallback 可以验证端到端 RAG 和来源追溯，但不是最终解析质量上限。图像内部文字、复杂扫描表格、bbox 级定位应使用 MinerU JSON/OCR/VLM 输出增强。
 
-Blind retrieval 用于检查问题本身能否召回正确文献；source-hinted demo 用于模拟产品中用户已经选中文献后的问答。二者不应混为一个指标。
+Blind retrieval 用于检查问题本身能否召回正确文献；source-hinted demo 用于模拟产品中用户已经选中文献后的问答。二者不应混为一个指标。当前指标是来源命中，不代表每个复杂表格或流程图都已被完整结构化还原。

@@ -65,6 +65,16 @@ curl -s -X POST http://127.0.0.1:8000/query \
 - 盲评模式：默认不使用样例来源列作为检索过滤，报告 Top-3 来源命中。
 - 零依赖 Web/API：基于标准库 HTTP server 提供 `/`、`/health`、`/documents` 和 `/query`。
 
+## 提交材料
+
+- API 文档：[docs/API.md](docs/API.md)
+- 部署说明：[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- 技术方案：[docs/TECHNICAL_SOLUTION.md](docs/TECHNICAL_SOLUTION.md)
+- 样例评测摘要：[docs/SAMPLE_EVAL_SUMMARY.md](docs/SAMPLE_EVAL_SUMMARY.md)
+- 提交检查清单：[docs/SUBMISSION_CHECKLIST.md](docs/SUBMISSION_CHECKLIST.md)
+
+如果 MedBench 申请后提供了固定请求/响应协议，应在现有 `/query` 能力外补一个轻量 adapter endpoint，保持核心 RAG 管线不变。
+
 ## 参考依据
 
 设计参考了 MinerU、OmniDocBench、Docling 和医疗 RAG 的公开工作：

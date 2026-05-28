@@ -24,5 +24,6 @@ data/*.zip
 
 # Keep sample metadata in git, but avoid committing copied PDFs by accident.
 医疗赛题/相关样例/*.pdf
+医疗赛题/MedBench.md
 *.tmp
 *.log
