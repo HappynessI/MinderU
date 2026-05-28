@@ -6,6 +6,7 @@ from typing import Any
 
 from minderu.indexing.bm25 import BM25Index
 from minderu.indexing.hybrid import HybridIndex
+from minderu.graph import build_document_graphs
 from minderu.schema import Chunk, DocumentRecord, Element
 from minderu.utils import read_json, write_json
 
@@ -17,9 +18,10 @@ def build_index(docs: list[DocumentRecord], chunks: list[Chunk], output_dir: str
     write_json(
         index_path,
         {
-            "version": 1,
+            "version": 2,
             "documents": [asdict(doc) for doc in docs],
             "chunks": [asdict(chunk) for chunk in chunks],
+            "graphs": [asdict(graph) for graph in build_document_graphs(docs, chunks)],
         },
     )
     return index_path

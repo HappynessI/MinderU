@@ -39,6 +39,27 @@ class DocumentRecord:
 
 
 @dataclass
+class PageRecord:
+    doc_id: str
+    page: int
+    element_ids: list[str] = field(default_factory=list)
+    chunk_ids: list[str] = field(default_factory=list)
+
+
+@dataclass
+class BlockRecord:
+    block_id: str
+    doc_id: str
+    type: str
+    text: str
+    page_start: int | None
+    page_end: int | None
+    bbox: list[float] | None = None
+    section_path: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class Chunk:
     chunk_id: str
     doc_id: str
@@ -60,6 +81,33 @@ class Chunk:
         return f"{self.title}, p. {self.page_start}"
 
 
+@dataclass
+class EvidenceSpan:
+    evidence_id: str
+    doc_id: str
+    chunk_id: str
+    title: str
+    evidence_type: str
+    text: str
+    page_start: int | None
+    page_end: int | None
+    element_ids: list[str] = field(default_factory=list)
+    bbox: list[float] | None = None
+    section_path: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class DocumentGraph:
+    doc_id: str
+    title: str
+    path: str
+    pages: list[PageRecord] = field(default_factory=list)
+    blocks: list[BlockRecord] = field(default_factory=list)
+    evidence_spans: list[EvidenceSpan] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
 def to_jsonable(value: Any) -> Any:
     if hasattr(value, "__dataclass_fields__"):
         return asdict(value)
@@ -68,4 +116,3 @@ def to_jsonable(value: Any) -> Any:
     if isinstance(value, dict):
         return {k: to_jsonable(v) for k, v in value.items()}
     return value
-

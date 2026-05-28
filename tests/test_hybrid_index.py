@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from minderu.indexing.hybrid import HybridIndex
+from minderu.rerank import rerank_evidence
 from minderu.schema import Chunk
 
 
@@ -43,7 +44,16 @@ class HybridIndexTest(unittest.TestCase):
         self.assertEqual(hits[0]["chunk"]["chunk_id"], "c1")
         self.assertEqual(hits[0]["retriever"], "hybrid_rrf")
 
+    def test_evidence_reranker_prefers_expected_type(self) -> None:
+        hits = [
+            {"score": 10.0, "chunk": {"chunk_id": "text", "chunk_type": "text", "text": "Table 1 mentions baseline"}},
+            {"score": 9.0, "chunk": {"chunk_id": "table", "chunk_type": "table_text", "text": "Age 60"}},
+        ]
+
+        reranked = rerank_evidence("提取Table 1的表格数据", hits)
+
+        self.assertEqual(reranked[0]["chunk"]["chunk_id"], "table")
+
 
 if __name__ == "__main__":
     unittest.main()
-

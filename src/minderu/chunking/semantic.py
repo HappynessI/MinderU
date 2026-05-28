@@ -107,6 +107,8 @@ def _chunk_element(doc: DocumentRecord, element: Element, max_chars: int) -> lis
         metadata = dict(element.metadata)
         metadata.setdefault("evidence_type", element.type)
         metadata["semantic_repr"] = _semantic_repr(doc, element, element.text)
+        if element.bbox is not None:
+            metadata["bbox"] = element.bbox
         return [
             Chunk(
                 chunk_id=stable_id(doc.doc_id, element.element_id, "atomic"),
@@ -131,6 +133,8 @@ def _chunk_element(doc: DocumentRecord, element: Element, max_chars: int) -> lis
             "evidence_type": "text",
             "semantic_repr": _semantic_repr(doc, element, text),
         }
+        if element.bbox is not None:
+            metadata["bbox"] = element.bbox
         chunks.append(
             Chunk(
                 chunk_id=stable_id(doc.doc_id, element.element_id, str(idx)),

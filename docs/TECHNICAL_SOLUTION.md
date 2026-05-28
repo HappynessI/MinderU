@@ -52,6 +52,7 @@ Normalization
   DocumentRecord
   Element
   Chunk
+  DocumentGraph / EvidenceSpan
 
 Chunking
   Heading-aware medical semantic chunking
@@ -63,6 +64,7 @@ Indexing
   BM25 lexical index
   Optional dense embedding index
   RRF hybrid fusion
+  Evidence-type reranking
   Optional future Qdrant layer
 
 Serving
@@ -166,7 +168,7 @@ scripts/run_sample_pipeline.sh
 - 远端仓库已配置为 `git@github.com:HappynessI/MinderU.git`。
 - 当前 API 不依赖 FastAPI；如需生产部署，可把 `api/server.py` 包装成 FastAPI 服务。
 - API、部署和提交清单分别维护在 `docs/API.md`、`docs/DEPLOYMENT.md` 和 `docs/SUBMISSION_CHECKLIST.md`，用于比赛提交和平台适配。
-- 高端方案路线图维护在 `docs/HIGH_END_SOLUTION_ROADMAP.md`，当前代码已开始落地其中的 hybrid retrieval 和 evidence metadata 基础。
+- 高端方案路线图维护在 `docs/HIGH_END_SOLUTION_ROADMAP.md`，当前代码已开始落地其中的 hybrid retrieval、DocumentGraph、EvidenceSpan 和 evidence metadata 基础。
 
 ## 6.1 当前提交边界
 

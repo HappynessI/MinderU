@@ -99,6 +99,10 @@ Response:
       "page_end": 1,
       "chunk_id": "example",
       "chunk_type": "text",
+      "evidence_id": "example",
+      "evidence_type": "text",
+      "bbox": null,
+      "assets": {},
       "section_path": [],
       "snippet": "Results In 25 patients ..."
     }
@@ -107,6 +111,15 @@ Response:
   "source_hint": "seyfarth2008.pdf"
 }
 ```
+
+Citation fields:
+
+| Field | Description |
+| --- | --- |
+| `evidence_id` | Stable evidence id, currently the chunk id. |
+| `evidence_type` | Normalized evidence class such as `text`, `table_text`, `figure_caption`, or MinerU block type. |
+| `bbox` | Optional source bounding box when provided by MinerU. |
+| `assets` | Optional table/image assets such as `table_html`, `markdown`, `image_path`, or captions. |
 
 ## Error Responses
 

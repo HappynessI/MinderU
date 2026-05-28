@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from minderu.indexing.bm25 import BM25Index, tokenize
+from minderu.rerank import rerank_evidence
 
 
 def _clean_snippet(text: str, max_chars: int = 1200) -> str:
@@ -69,7 +70,8 @@ def _page_hint(question: str) -> int | None:
 
 
 def answer_question(index: BM25Index, question: str, top_k: int = 6, source_hint: str | None = None) -> dict[str, Any]:
-    hits = index.search(question, top_k=top_k, source_hint=source_hint, page_hint=_page_hint(question))
+    hits = index.search(question, top_k=max(top_k * 2, top_k), source_hint=source_hint, page_hint=_page_hint(question))
+    hits = rerank_evidence(question, hits)[:top_k]
     if not hits:
         return {
             "answer": "未检索到足够证据。请确认文献已经入库，或提高解析质量后重建索引。",
@@ -92,12 +94,16 @@ def answer_question(index: BM25Index, question: str, top_k: int = 6, source_hint
             {
                 "rank": rank,
                 "score": hit["score"],
+                "evidence_id": chunk["chunk_id"],
                 "doc_id": chunk["doc_id"],
                 "title": chunk["title"],
                 "page_start": chunk["page_start"],
                 "page_end": chunk["page_end"],
                 "chunk_id": chunk["chunk_id"],
                 "chunk_type": chunk["chunk_type"],
+                "evidence_type": chunk.get("metadata", {}).get("evidence_type", chunk["chunk_type"]),
+                "bbox": chunk.get("metadata", {}).get("bbox"),
+                "assets": _assets(chunk.get("metadata", {})),
                 "section_path": chunk.get("section_path", []),
                 "snippet": text,
             }
@@ -113,3 +119,8 @@ def answer_question(index: BM25Index, question: str, top_k: int = 6, source_hint
     if re.search(r"图|figure|fig", question, re.I):
         answer += "\n\n注意：若原文目标是流程图/图片，本地零依赖解析只能定位页码、图注或附近文本；完整图像内容需要 MinerU OCR/VLM 输出或页面截图证据。"
     return {"answer": answer, "citations": evidence[:top_k], "retrieved": hits, "source_hint": source_hint}
+
+
+def _assets(metadata: dict[str, Any]) -> dict[str, Any]:
+    keys = ("image_path", "table_html", "markdown", "captions")
+    return {key: metadata[key] for key in keys if key in metadata}

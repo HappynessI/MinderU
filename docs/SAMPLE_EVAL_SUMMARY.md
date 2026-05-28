@@ -28,7 +28,7 @@ scripts/run_sample_pipeline.sh
 
 - Blind retrieval：5/5 个样例 Top-3 来源命中。
 - Source-hinted demo：5/5 个样例 Top-3 来源命中。
-- 当前评测报告会输出 Source Hit@1/3/5 和 MRR。
+- 当前评测报告会输出 Source Hit@1/3/5、Evidence Type Hit@3、Page Hit@3 和 MRR。
 - 第 3 题“图5中的表格数据”已能在 blind 模式下把 `todo1992` 的表格 chunk 排到首位。
 
 ## 当前能力边界

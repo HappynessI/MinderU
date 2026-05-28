@@ -115,6 +115,7 @@ class ApiServerTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("mortality", payload["answer"])
         self.assertEqual(len(payload["citations"]), 1)
+        self.assertIn("evidence_id", payload["citations"][0])
 
 
 if __name__ == "__main__":

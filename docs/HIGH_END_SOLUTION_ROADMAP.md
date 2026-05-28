@@ -449,9 +449,17 @@ RAG 层：
 - 样例评测报告增加 Source Hit@1/3/5 和 MRR。
 - 新增 hybrid retrieval 单测，覆盖无 dense fallback 和 dense+RRF 路径。
 
+第二批已完成：
+
+- Index artifact 写入 `DocumentGraph`，显式包含 pages、blocks 和 evidence spans。
+- `EvidenceSpan` 关联 chunk、element、bbox、section 和 source metadata。
+- `/query` citations 增加 `evidence_id`、`evidence_type`、`bbox`、`assets`。
+- 新增 evidence-type rule reranker，提升表格/图像/正文问题的证据类型匹配。
+- 样例评测增加 Evidence Type Hit@3 和 Page Hit@3。
+
 下一批优先实现：
 
-1. 更完整的 retrieval metrics：page hit、type hit、evidence hit。
-2. `DocumentGraph` schema：显式建模 Page/Block/Table/Figure/EvidenceSpan。
-3. Evidence packer：合并相邻 chunk，优先保留 table/figure/page evidence。
-4. Cross-encoder reranker 可选路径。
+1. 独立 `minderu eval retrieval` 命令，支持 JSONL 标注集和可配置 hit@k。
+2. Evidence packer：合并相邻 chunk，按 page/table/figure 组织 evidence package。
+3. Cross-encoder reranker 可选路径。
+4. Page crop/image evidence API。
