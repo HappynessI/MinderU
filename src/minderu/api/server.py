@@ -15,6 +15,7 @@ WEB_DIR = Path(__file__).resolve().parents[1] / "web"
 class QueryHandler(BaseHTTPRequestHandler):
     index = None
     documents = []
+    retriever = "bm25"
 
     def _send_bytes(self, status: int, body: bytes, content_type: str) -> None:
         self.send_response(status)
@@ -32,7 +33,7 @@ class QueryHandler(BaseHTTPRequestHandler):
         if path in {"/", "/demo"}:
             self._serve_web()
         elif path == "/health":
-            self._json(200, {"ok": True})
+            self._json(200, {"ok": True, "retriever": self.retriever})
         elif path == "/documents":
             self._json(200, {"documents": self.documents})
         else:
@@ -85,9 +86,10 @@ class QueryHandler(BaseHTTPRequestHandler):
         )
 
 
-def configure_handler(index_path: str | Path) -> None:
-    docs, _, index = load_index(index_path)
+def configure_handler(index_path: str | Path, retriever: str = "bm25", embedding_model: str | None = None) -> None:
+    docs, _, index = load_index(index_path, retriever=retriever, embedding_model=embedding_model)
     QueryHandler.index = index
+    QueryHandler.retriever = retriever
     QueryHandler.documents = [
         {
             "doc_id": doc.doc_id,
@@ -100,10 +102,17 @@ def configure_handler(index_path: str | Path) -> None:
     ]
 
 
-def serve(index_path: str | Path, host: str = "127.0.0.1", port: int = 8000) -> None:
-    configure_handler(index_path)
+def serve(
+    index_path: str | Path,
+    host: str = "127.0.0.1",
+    port: int = 8000,
+    retriever: str = "bm25",
+    embedding_model: str | None = None,
+) -> None:
+    configure_handler(index_path, retriever=retriever, embedding_model=embedding_model)
     server = ThreadingHTTPServer((host, port), QueryHandler)
     print(f"MinderU demo listening on http://{host}:{port}")
+    print(f"retriever={retriever}{' embedding_model=' + embedding_model if embedding_model else ''}")
     print("POST /query with JSON: {\"question\": \"...\", \"top_k\": 6}")
     server.serve_forever()
 
@@ -113,8 +122,10 @@ def main() -> None:
     parser.add_argument("--index", required=True)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--retriever", choices=("bm25", "hybrid"), default="bm25")
+    parser.add_argument("--embedding-model", default=None)
     args = parser.parse_args()
-    serve(args.index, args.host, args.port)
+    serve(args.index, args.host, args.port, retriever=args.retriever, embedding_model=args.embedding_model)
 
 
 if __name__ == "__main__":

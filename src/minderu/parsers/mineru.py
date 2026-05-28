@@ -41,6 +41,39 @@ def _block_type(block: dict[str, Any]) -> str:
     return raw or "text"
 
 
+def _block_metadata(block: dict[str, Any]) -> dict[str, Any]:
+    metadata = {
+        k: v
+        for k, v in block.items()
+        if k not in {"text", "content", "html", "md", "markdown", "spans"}
+    }
+    block_type = _block_type(block)
+    metadata["evidence_type"] = block_type
+    for source_key, target_key in (
+        ("html", "table_html"),
+        ("table_html", "table_html"),
+        ("md", "markdown"),
+        ("markdown", "markdown"),
+        ("img_path", "image_path"),
+        ("image_path", "image_path"),
+    ):
+        value = block.get(source_key)
+        if isinstance(value, str) and value.strip():
+            metadata[target_key] = value.strip()
+    captions: list[str] = []
+    for key in ("table_caption", "image_caption", "img_caption", "caption"):
+        value = block.get(key)
+        if isinstance(value, list):
+            captions.extend(str(item).strip() for item in value if str(item).strip())
+        elif isinstance(value, str) and value.strip():
+            captions.append(value.strip())
+    if captions:
+        metadata["captions"] = list(dict.fromkeys(captions))
+    if "page_idx" in block:
+        metadata["page_idx"] = block["page_idx"]
+    return metadata
+
+
 def _page_number(block: dict[str, Any]) -> int | None:
     if "page_idx" in block:
         try:
@@ -111,7 +144,7 @@ def load_mineru_document(json_path: str | Path, source_pdf: str | Path | None = 
                 page_start=page_num,
                 page_end=page_num,
                 bbox=bbox if isinstance(bbox, list) else None,
-                metadata={k: v for k, v in block.items() if k not in {"text", "content", "html", "md", "markdown", "spans"}},
+                metadata=_block_metadata(block),
             )
         )
     doc.pages = pages

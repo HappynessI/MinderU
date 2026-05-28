@@ -61,7 +61,9 @@ Chunking
 Indexing
   Local JSON artifact
   BM25 lexical index
-  Optional future dense embedding / Qdrant layer
+  Optional dense embedding index
+  RRF hybrid fusion
+  Optional future Qdrant layer
 
 Serving
   CLI
@@ -100,7 +102,7 @@ Serving
 
 ### 4.3 检索
 
-第一版实现了本地 BM25，原因是当前环境没有 `sentence-transformers`、`qdrant-client`、`numpy` 等依赖。BM25 层做了医学样例需要的增强：
+第一版实现了本地 BM25，并新增 hybrid retrieval 骨架。默认无外部依赖时仍使用 BM25；如果提供 `--embedding-model`，系统会加载 `sentence-transformers`，执行 dense retrieval，并用 RRF 与 BM25 结果融合。BM25 层做了医学样例需要的增强：
 
 - 中英查询扩展：`摘要 -> abstract/results/conclusions`，`表格 -> table`，`图 -> fig/figure`。
 - 图表编号增强：`图5中的表格数据` 会同时匹配 `Figure 5` 和 `Table 5`。
@@ -113,7 +115,7 @@ Serving
 
 后续增强：
 
-- 使用 `sentence-transformers` 生成 dense embedding。
+- 使用医学/多语言 embedding 模型进行 dense retrieval，例如 multilingual MiniLM、BGE-M3 或医学领域 embedding。
 - 使用 Qdrant payload filter 存储 `doc_id/page/section/type`。
 - 加 BM25 + dense + reranker 的三段式混合检索。
 
@@ -164,6 +166,7 @@ scripts/run_sample_pipeline.sh
 - 远端仓库已配置为 `git@github.com:HappynessI/MinderU.git`。
 - 当前 API 不依赖 FastAPI；如需生产部署，可把 `api/server.py` 包装成 FastAPI 服务。
 - API、部署和提交清单分别维护在 `docs/API.md`、`docs/DEPLOYMENT.md` 和 `docs/SUBMISSION_CHECKLIST.md`，用于比赛提交和平台适配。
+- 高端方案路线图维护在 `docs/HIGH_END_SOLUTION_ROADMAP.md`，当前代码已开始落地其中的 hybrid retrieval 和 evidence metadata 基础。
 
 ## 6.1 当前提交边界
 

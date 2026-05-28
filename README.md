@@ -43,6 +43,25 @@ python3 -m minderu.cli query \
   --question "请根据输入的文献内容，提取摘要中的结果部分内容"
 ```
 
+可选启用 hybrid 检索骨架：
+
+```bash
+python3 -m minderu.cli query \
+  --index data/runs/sample_kb/index.json \
+  --retriever hybrid \
+  --question "请根据输入的文献内容，提取图5中的表格数据"
+```
+
+若安装了 `sentence-transformers`，可通过 `--embedding-model` 增加 dense retrieval，并与 BM25 通过 RRF 融合：
+
+```bash
+python3 -m minderu.cli query \
+  --index data/runs/sample_kb/index.json \
+  --retriever hybrid \
+  --embedding-model paraphrase-multilingual-MiniLM-L12-v2 \
+  --question "请根据输入的文献内容，提取摘要中的结果部分内容"
+```
+
 启动 Web Demo / API：
 
 ```bash
@@ -61,6 +80,7 @@ curl -s -X POST http://127.0.0.1:8000/query \
 - MinerU 接入：支持读取 MinerU JSON，将其统一到本项目 schema。
 - 语义切片：识别摘要、Results、Methods、中文“问题一/二/三/四”等医学文献结构，不按固定字数硬切。
 - 可追溯检索：每个 chunk 保留文献名、页码、元素类型、section path、element id。
+- 混合检索骨架：支持 BM25 + 可选 dense embedding + RRF；无 dense 依赖时自动回退 BM25。
 - 样例评测：自动读取赛事样例 Excel，输出 `sample_eval.md/json/jsonl`。
 - 盲评模式：默认不使用样例来源列作为检索过滤，报告 Top-3 来源命中。
 - 零依赖 Web/API：基于标准库 HTTP server 提供 `/`、`/health`、`/documents` 和 `/query`。
@@ -72,6 +92,7 @@ curl -s -X POST http://127.0.0.1:8000/query \
 - 技术方案：[docs/TECHNICAL_SOLUTION.md](docs/TECHNICAL_SOLUTION.md)
 - 样例评测摘要：[docs/SAMPLE_EVAL_SUMMARY.md](docs/SAMPLE_EVAL_SUMMARY.md)
 - 提交检查清单：[docs/SUBMISSION_CHECKLIST.md](docs/SUBMISSION_CHECKLIST.md)
+- 高端方案路线图：[docs/HIGH_END_SOLUTION_ROADMAP.md](docs/HIGH_END_SOLUTION_ROADMAP.md)
 
 如果 MedBench 申请后提供了固定请求/响应协议，应在现有 `/query` 能力外补一个轻量 adapter endpoint，保持核心 RAG 管线不变。
 

@@ -52,8 +52,11 @@ class MinerUParserTest(unittest.TestCase):
         self.assertEqual(doc.elements[0].type, "table")
         self.assertIn("<table>", doc.elements[0].text)
         self.assertEqual(doc.elements[0].bbox, [1, 2, 3, 4])
+        self.assertEqual(doc.elements[0].metadata["evidence_type"], "table")
+        self.assertIn("captions", doc.elements[0].metadata)
         self.assertEqual(doc.elements[1].type, "figure")
         self.assertIn("images/figure2.png", doc.elements[1].text)
+        self.assertEqual(doc.elements[1].metadata["image_path"], "images/figure2.png")
 
 
 if __name__ == "__main__":

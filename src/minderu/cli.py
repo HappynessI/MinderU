@@ -59,7 +59,7 @@ def ingest(args: argparse.Namespace) -> None:
 
 
 def query(args: argparse.Namespace) -> None:
-    _, _, index = load_index(args.index)
+    _, _, index = load_index(args.index, retriever=args.retriever, embedding_model=args.embedding_model)
     result = answer_question(index, args.question, top_k=args.top_k, source_hint=args.source_hint)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -72,7 +72,14 @@ def query(args: argparse.Namespace) -> None:
 
 
 def evaluate(args: argparse.Namespace) -> None:
-    results = evaluate_sample_questions(args.index, args.samples_xlsx, args.output, use_source_hints=args.use_source_hints)
+    results = evaluate_sample_questions(
+        args.index,
+        args.samples_xlsx,
+        args.output,
+        use_source_hints=args.use_source_hints,
+        retriever=args.retriever,
+        embedding_model=args.embedding_model,
+    )
     print(f"evaluated {len(results)} questions -> {args.output}")
 
 
@@ -102,6 +109,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--question", required=True)
     p.add_argument("--top-k", type=int, default=6)
     p.add_argument("--source-hint", default=None)
+    p.add_argument("--retriever", choices=("bm25", "hybrid"), default="bm25")
+    p.add_argument("--embedding-model", default=None, help="Optional sentence-transformers model for dense retrieval.")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=query)
 
@@ -110,6 +119,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--samples-xlsx", required=True)
     p.add_argument("--output", required=True)
     p.add_argument("--use-source-hints", action="store_true", help="Use expected source column as a document filter for demo mode.")
+    p.add_argument("--retriever", choices=("bm25", "hybrid"), default="bm25")
+    p.add_argument("--embedding-model", default=None, help="Optional sentence-transformers model for dense retrieval.")
     p.set_defaults(func=evaluate)
 
     p = sub.add_parser("inspect", help="Print index statistics.")
@@ -120,7 +131,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--index", required=True)
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
-    p.set_defaults(func=lambda a: serve(a.index, a.host, a.port))
+    p.add_argument("--retriever", choices=("bm25", "hybrid"), default="bm25")
+    p.add_argument("--embedding-model", default=None, help="Optional sentence-transformers model for dense retrieval.")
+    p.set_defaults(func=lambda a: serve(a.index, a.host, a.port, retriever=a.retriever, embedding_model=a.embedding_model))
     return parser
 
 

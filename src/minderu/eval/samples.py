@@ -14,8 +14,10 @@ def evaluate_sample_questions(
     xlsx_path: str | Path,
     output_dir: str | Path,
     use_source_hints: bool = False,
+    retriever: str = "bm25",
+    embedding_model: str | None = None,
 ) -> list[dict[str, Any]]:
-    _, _, index = load_index(index_path)
+    _, _, index = load_index(index_path, retriever=retriever, embedding_model=embedding_model)
     rows = read_first_sheet(xlsx_path)
     results: list[dict[str, Any]] = []
     for row in rows:
@@ -23,7 +25,8 @@ def evaluate_sample_questions(
         source_hint = _source_hint(row) if use_source_hints else None
         response = answer_question(index, question, top_k=6, source_hint=source_hint)
         expected_source = row.get("来源", "")
-        top_titles = [cite["title"] for cite in response["citations"][:3]]
+        top_titles = [cite["title"] for cite in response["citations"]]
+        metrics = _ranking_metrics(expected_source, top_titles)
         results.append(
             {
                 "id": row.get("id"),
@@ -31,7 +34,8 @@ def evaluate_sample_questions(
                 "expected": row.get("输出", ""),
                 "source": row.get("来源", ""),
                 "source_hint": source_hint,
-                "blind_source_hit_top3": _source_hit(expected_source, top_titles),
+                "blind_source_hit_top3": metrics["source_hit_at_3"],
+                "metrics": metrics,
                 "note": row.get("说明", ""),
                 "answer": response["answer"],
                 "citations": response["citations"],
@@ -44,6 +48,13 @@ def evaluate_sample_questions(
     with (out / "sample_eval.md").open("w", encoding="utf-8") as f:
         f.write("# 医疗样例问答评测\n\n")
         f.write(f"- 模式：{'source-hinted demo' if use_source_hints else 'blind retrieval'}\n\n")
+        f.write(f"- 检索器：{retriever}{' + dense=' + embedding_model if embedding_model else ''}\n\n")
+        summary = _summarize_metrics(results)
+        f.write("## 汇总指标\n\n")
+        f.write(f"- Source Hit@1：{summary['source_hit_at_1']:.3f}\n")
+        f.write(f"- Source Hit@3：{summary['source_hit_at_3']:.3f}\n")
+        f.write(f"- Source Hit@5：{summary['source_hit_at_5']:.3f}\n")
+        f.write(f"- MRR：{summary['mrr']:.3f}\n\n")
         for item in results:
             f.write(f"## {item['id']}. {item['question']}\n\n")
             f.write(f"- 期望来源：{item['source']}\n")
@@ -71,3 +82,38 @@ def _source_hit(expected_source: str, titles: list[str]) -> bool:
         return False
     expected = expected_source.lower().removesuffix(".pdf")
     return any(expected in title.lower() or title.lower() in expected for title in titles)
+
+
+def _ranking_metrics(expected_source: str, titles: list[str]) -> dict[str, float | bool | int | None]:
+    rank = _source_rank(expected_source, titles)
+    return {
+        "source_rank": rank,
+        "source_hit_at_1": rank is not None and rank <= 1,
+        "source_hit_at_3": rank is not None and rank <= 3,
+        "source_hit_at_5": rank is not None and rank <= 5,
+        "reciprocal_rank": 0.0 if rank is None else 1.0 / rank,
+    }
+
+
+def _source_rank(expected_source: str, titles: list[str]) -> int | None:
+    if not expected_source:
+        return None
+    expected = expected_source.lower().removesuffix(".pdf")
+    for idx, title in enumerate(titles, start=1):
+        lowered = title.lower()
+        if expected in lowered or lowered in expected:
+            return idx
+    return None
+
+
+def _summarize_metrics(results: list[dict[str, Any]]) -> dict[str, float]:
+    if not results:
+        return {"source_hit_at_1": 0.0, "source_hit_at_3": 0.0, "source_hit_at_5": 0.0, "mrr": 0.0}
+    metrics = [row["metrics"] for row in results]
+    n = len(metrics)
+    return {
+        "source_hit_at_1": sum(1 for item in metrics if item["source_hit_at_1"]) / n,
+        "source_hit_at_3": sum(1 for item in metrics if item["source_hit_at_3"]) / n,
+        "source_hit_at_5": sum(1 for item in metrics if item["source_hit_at_5"]) / n,
+        "mrr": sum(float(item["reciprocal_rank"]) for item in metrics) / n,
+    }

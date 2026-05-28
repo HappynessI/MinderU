@@ -11,6 +11,7 @@ This guide describes the minimal deployment path for the competition demo.
 Optional quality upgrades:
 
 - MinerU JSON outputs for better reading order, tables, images, and OCR.
+- `sentence-transformers` for dense retrieval inside the hybrid retriever.
 - A reverse proxy such as Nginx if the benchmark platform requires TLS or external routing.
 
 ## Build Index
@@ -44,6 +45,27 @@ python3 -m minderu.cli api \
   --port 8000
 ```
 
+Hybrid retrieval without dense dependencies:
+
+```bash
+python3 -m minderu.cli api \
+  --index data/runs/sample_kb/index.json \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --retriever hybrid
+```
+
+Hybrid retrieval with dense embeddings:
+
+```bash
+python3 -m minderu.cli api \
+  --index data/runs/sample_kb/index.json \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --retriever hybrid \
+  --embedding-model paraphrase-multilingual-MiniLM-L12-v2
+```
+
 Smoke test:
 
 ```bash
@@ -59,4 +81,3 @@ curl -s -X POST http://127.0.0.1:8000/query \
 - Use `source_hint` only when the product or benchmark request already identifies the target document.
 - For pure blind retrieval, omit `source_hint`.
 - The default server is suitable for demo and benchmark calls with modest concurrency. For production traffic, wrap the same query function in FastAPI or another ASGI server.
-

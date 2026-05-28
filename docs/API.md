@@ -73,6 +73,17 @@ Fields:
 | `source_hint` | string | no | Optional document title or PDF filename. Use this when the product flow has already selected a document. |
 | `top_k` | integer | no | Number of evidence chunks to retrieve. Clamped to 1-20. Default is 6. |
 
+The server-side retriever is selected at startup:
+
+```bash
+python3 -m minderu.cli api \
+  --index data/runs/sample_kb/index.json \
+  --retriever hybrid \
+  --embedding-model paraphrase-multilingual-MiniLM-L12-v2
+```
+
+`--retriever hybrid` supports BM25 + optional dense retrieval + reciprocal rank fusion. If `--embedding-model` is omitted, it preserves the zero-dependency BM25 behavior.
+
 Response:
 
 ```json
@@ -117,4 +128,3 @@ python3 -m minderu.cli eval \
   --samples-xlsx "医疗赛题/相关样例/医疗文档问答示例 - MinerU.xlsx" \
   --output data/runs/sample_kb/eval
 ```
-

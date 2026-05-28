@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from minderu.indexing.bm25 import BM25Index
+from minderu.indexing.hybrid import HybridIndex
 from minderu.schema import Chunk, DocumentRecord, Element
 from minderu.utils import read_json, write_json
 
@@ -36,9 +37,14 @@ def _document_from_dict(row: dict[str, Any]) -> DocumentRecord:
     )
 
 
-def load_index(path: str | Path) -> tuple[list[DocumentRecord], list[Chunk], BM25Index]:
+def load_index(
+    path: str | Path,
+    retriever: str = "bm25",
+    embedding_model: str | None = None,
+) -> tuple[list[DocumentRecord], list[Chunk], BM25Index | HybridIndex]:
     payload = read_json(path)
     docs = [_document_from_dict(d) for d in payload.get("documents", [])]
     chunks = [Chunk(**c) for c in payload.get("chunks", [])]
+    if retriever == "hybrid" or embedding_model:
+        return docs, chunks, HybridIndex(chunks, dense_model_name=embedding_model)
     return docs, chunks, BM25Index(chunks)
-

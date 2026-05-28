@@ -90,9 +90,23 @@ def _contextual_text(title: str, section_path: list[str], body: str) -> str:
     return "\n".join(context) + "\n\n" + body.strip()
 
 
+def _semantic_repr(doc: DocumentRecord, element: Element, body: str) -> str:
+    parts = [doc.title, element.type, " > ".join(element.section_path)]
+    captions = element.metadata.get("captions")
+    if isinstance(captions, list):
+        parts.extend(str(caption) for caption in captions)
+    elif isinstance(element.metadata.get("label"), str):
+        parts.append(str(element.metadata["label"]))
+    parts.append(body)
+    return "\n".join(part for part in parts if part)
+
+
 def _chunk_element(doc: DocumentRecord, element: Element, max_chars: int) -> list[Chunk]:
     if element.type in {"table", "table_text", "table_caption", "figure", "figure_caption"}:
         text = _contextual_text(doc.title, element.section_path, element.text)
+        metadata = dict(element.metadata)
+        metadata.setdefault("evidence_type", element.type)
+        metadata["semantic_repr"] = _semantic_repr(doc, element, element.text)
         return [
             Chunk(
                 chunk_id=stable_id(doc.doc_id, element.element_id, "atomic"),
@@ -104,7 +118,7 @@ def _chunk_element(doc: DocumentRecord, element: Element, max_chars: int) -> lis
                 page_end=element.page_end,
                 element_ids=[element.element_id],
                 section_path=element.section_path,
-                metadata=dict(element.metadata),
+                metadata=metadata,
             )
         ]
 
@@ -113,6 +127,10 @@ def _chunk_element(doc: DocumentRecord, element: Element, max_chars: int) -> lis
     packed = units if has_section_boundaries else _pack_units(units, max_chars=max_chars)
     chunks: list[Chunk] = []
     for idx, text in enumerate(packed):
+        metadata = {
+            "evidence_type": "text",
+            "semantic_repr": _semantic_repr(doc, element, text),
+        }
         chunks.append(
             Chunk(
                 chunk_id=stable_id(doc.doc_id, element.element_id, str(idx)),
@@ -124,7 +142,7 @@ def _chunk_element(doc: DocumentRecord, element: Element, max_chars: int) -> lis
                 page_end=element.page_end,
                 element_ids=[element.element_id],
                 section_path=element.section_path,
-                metadata={},
+                metadata=metadata,
             )
         )
     return chunks
