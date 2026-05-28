@@ -42,7 +42,8 @@ The `--mineru-dir` layout can be either `<pdf_stem>/auto/<pdf_stem>_content_list
 python3 -m minderu.cli api \
   --index data/runs/sample_kb/index.json \
   --host 0.0.0.0 \
-  --port 8000
+  --port 8000 \
+  --answer-mode grounded
 ```
 
 Hybrid retrieval without dense dependencies:
@@ -85,8 +86,10 @@ Smoke test:
 curl -s http://127.0.0.1:8000/health
 curl -s -X POST http://127.0.0.1:8000/query \
   -H 'Content-Type: application/json' \
-  -d '{"question":"请根据输入的文献内容，提取摘要中的结果部分内容","source_hint":"seyfarth2008.pdf"}'
+  -d '{"question":"请根据输入的文献内容，提取摘要中的结果部分内容","source_hint":"seyfarth2008.pdf","answer_mode":"grounded"}'
 ```
+
+The API supports `answer_mode=extractive|grounded|evidence_only`. Use `grounded` for benchmark/demo responses that should visibly cite evidence as `[E1]`, `[E2]`, and so on.
 
 Retrieval-only evaluation:
 
@@ -97,9 +100,21 @@ python3 -m minderu.cli eval-retrieval \
   --output data/runs/sample_kb/retrieval_eval
 ```
 
+Qdrant export:
+
+```bash
+python3 -m minderu.cli export-qdrant \
+  --index data/runs/sample_kb/index.json \
+  --output data/runs/sample_kb/qdrant_points.jsonl \
+  --collection minderu_documents
+```
+
+Add `--embedding-model <sentence-transformers-model>` if the export should include vectors rather than payload-only points.
+
 ## Operational Notes
 
 - `data/runs/` is a local artifact directory and is intentionally ignored by git.
 - Use `source_hint` only when the product or benchmark request already identifies the target document.
 - For pure blind retrieval, omit `source_hint`.
+- Indexed table assets are available at `/tables/{evidence_id}`. Indexed image assets are available at `/assets/{evidence_id}/image`.
 - The default server is suitable for demo and benchmark calls with modest concurrency. For production traffic, wrap the same query function in FastAPI or another ASGI server.

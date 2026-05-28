@@ -61,7 +61,8 @@ Request:
 {
   "question": "请根据输入的文献内容，提取摘要中的结果部分内容",
   "source_hint": "seyfarth2008.pdf",
-  "top_k": 6
+  "top_k": 6,
+  "answer_mode": "grounded"
 }
 ```
 
@@ -72,6 +73,7 @@ Fields:
 | `question` | string | yes | User question to answer from the indexed medical literature. |
 | `source_hint` | string | no | Optional document title or PDF filename. Use this when the product flow has already selected a document. |
 | `top_k` | integer | no | Number of evidence chunks to retrieve. Clamped to 1-20. Default is 6. |
+| `answer_mode` | string | no | `extractive`, `grounded`, or `evidence_only`. The grounded mode emits citation markers such as `[E1]`. |
 
 The server-side retriever is selected at startup:
 
@@ -90,7 +92,8 @@ Response:
 
 ```json
 {
-  "answer": "- Results In 25 patients the allocated device ...",
+  "answer": "- Results In 25 patients the allocated device ... [E1]",
+  "answer_mode": "grounded",
   "citations": [
     {
       "rank": 1,
@@ -130,17 +133,19 @@ Citation fields:
 GET /evidence/{evidence_id}
 GET /documents/{doc_id}/pages/{page}
 GET /tables/{evidence_id}
+GET /assets/{evidence_id}/image
 ```
 
 - `/evidence/{evidence_id}` returns the stored evidence span from the index graph.
 - `/documents/{doc_id}/pages/{page}` returns page blocks and evidence spans.
 - `/tables/{evidence_id}` returns `table_html` or `markdown` assets when present.
+- `/assets/{evidence_id}/image` returns an indexed image file when `image_path` was preserved from MinerU metadata.
 
 ## Error Responses
 
 | Status | Condition |
 | --- | --- |
-| 400 | Invalid JSON, missing `question`, or non-integer `top_k`. |
+| 400 | Invalid JSON, missing `question`, non-integer `top_k`, or unsupported `answer_mode`. |
 | 404 | Unknown path. |
 | 500 | Web demo asset missing. |
 

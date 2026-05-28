@@ -119,20 +119,22 @@ Serving
 后续增强：
 
 - 使用医学/多语言 embedding 模型进行 dense retrieval，例如 multilingual MiniLM、BGE-M3 或医学领域 embedding。
-- 使用 Qdrant payload filter 存储 `doc_id/page/section/type`。
-- 加 BM25 + dense + reranker 的三段式混合检索。
+- 已提供 Qdrant-compatible JSONL 导出，payload 保留 `doc_id/page/section/type/assets`；生产部署可导入 Qdrant 后用 payload filter 替代本地内存搜索。
 
 ### 4.4 问答
 
-第一版采用抽取式问答：
+当前支持三种问答模式：
 
 - 优先返回目标结构片段，例如摘要 Results、问题四、表格 chunk。
+- `grounded` 模式将答案组织为带 `[E#]` 的证据引用句，并做 citation marker 校验。
+- `evidence_only` 模式只返回证据包，适合需要完全避免生成扩写的平台。
 - 对图像/流程图返回图注、页码和说明，提示需要 MinerU OCR/VLM 或页面截图补全图像内容。
 - 所有答案返回 citations，不做无来源扩写。
 
 代码位置：
 
 - `src/minderu/qa/extractive.py`
+- `src/minderu/qa/grounded.py`
 
 ## 5. 样例评测结果
 
@@ -165,11 +167,13 @@ scripts/run_sample_pipeline.sh
 
 - 无网络、无模型依赖时可以跑通全链路。
 - Web Demo 使用标准库 HTTP server 直接托管 `src/minderu/web/index.html`，访问 `/` 或 `/demo` 即可打开；前端通过 `/documents` 读取文献列表，通过 `/query` 查询答案和证据。
+- API 支持 `/evidence/{id}`、`/documents/{doc_id}/pages/{page}`、`/tables/{id}` 和 `/assets/{id}/image`，可展示表格和已入库图像资产。
+- CLI 支持 `export-qdrant`，可输出 payload-only 或带 embedding vector 的 Qdrant 导入点。
 - 大文件和产物不进入 git：`data/runs/`、`data/outputs/` 已忽略。
 - 远端仓库已配置为 `git@github.com:HappynessI/MinderU.git`。
 - 当前 API 不依赖 FastAPI；如需生产部署，可把 `api/server.py` 包装成 FastAPI 服务。
 - API、部署和提交清单分别维护在 `docs/API.md`、`docs/DEPLOYMENT.md` 和 `docs/SUBMISSION_CHECKLIST.md`，用于比赛提交和平台适配。
-- 高端方案路线图维护在 `docs/HIGH_END_SOLUTION_ROADMAP.md`，当前代码已开始落地其中的 hybrid retrieval、DocumentGraph、EvidenceSpan 和 evidence metadata 基础。
+- 高端方案路线图维护在 `docs/HIGH_END_SOLUTION_ROADMAP.md`，当前代码已落地 hybrid retrieval、DocumentGraph、EvidenceSpan、evidence metadata、grounded answer、检索评测和 Qdrant export 基础。
 
 ## 6.1 当前提交边界
 
@@ -181,8 +185,8 @@ scripts/run_sample_pipeline.sh
 
 1. 接入真实 MinerU 解析结果，替换 Poppler fallback，用 bbox 和图片资产解决图 3 流程图完整提取。
 2. 增加表格结构化后处理，把 `table_text` 转成二维 cell JSON。
-3. 增加 Qdrant 混合检索和医学 embedding 模型。
-4. 增加 LLM 引用生成层，但必须强制 citation-grounded。
+3. 把 Qdrant export 升级为在线 Qdrant backend，并加入医学 embedding 模型默认配置。
+4. 增加可选 LLM synthesis，但必须保留 citation-grounded validator 和 evidence-only fallback。
 5. 增加 OmniDocBench 风格解析指标：文本编辑距离、表格 TEDS、阅读顺序、图表标题匹配率。
 
 ## 8. 参考链接

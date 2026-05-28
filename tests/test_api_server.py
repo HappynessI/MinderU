@@ -20,6 +20,8 @@ class ApiServerTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
+        image = root / "figure.png"
+        image.write_bytes(b"\x89PNG\r\n\x1a\n")
         docs = [
             DocumentRecord(
                 doc_id="doc-1",
@@ -45,6 +47,15 @@ class ApiServerTest(unittest.TestCase):
                         page_end=2,
                         metadata={"table_html": "<table><tr><td>Age</td></tr></table>"},
                     ),
+                    Element(
+                        element_id="e3",
+                        doc_id="doc-1",
+                        type="figure",
+                        text="Figure 1. Flowchart",
+                        page_start=2,
+                        page_end=2,
+                        metadata={"image_path": str(image)},
+                    ),
                 ],
             )
         ]
@@ -69,6 +80,17 @@ class ApiServerTest(unittest.TestCase):
                 page_end=2,
                 element_ids=["e2"],
                 metadata={"evidence_type": "table", "table_html": "<table><tr><td>Age</td></tr></table>"},
+            ),
+            Chunk(
+                chunk_id="fig1",
+                doc_id="doc-1",
+                title="demo-paper",
+                text="Document: demo-paper\n\nFigure 1. Flowchart",
+                chunk_type="figure",
+                page_start=2,
+                page_end=2,
+                element_ids=["e3"],
+                metadata={"evidence_type": "figure", "image_path": str(image)},
             ),
         ]
         configure_handler(build_index(docs, chunks, root))
@@ -138,6 +160,29 @@ class ApiServerTest(unittest.TestCase):
         self.assertIn("evidence_id", payload["citations"][0])
         self.assertIn("evidence_packages", payload)
 
+    def test_query_endpoint_accepts_grounded_answer_mode(self) -> None:
+        status, _, body = self._call_handler(
+            "POST",
+            "/query",
+            {"question": "Results mortality", "top_k": 1, "answer_mode": "grounded"},
+        )
+        payload = json.loads(body.decode("utf-8"))
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["answer_mode"], "grounded")
+        self.assertIn("[E1]", payload["answer"])
+
+    def test_query_endpoint_rejects_unknown_answer_mode(self) -> None:
+        status, _, body = self._call_handler(
+            "POST",
+            "/query",
+            {"question": "Results mortality", "answer_mode": "freeform"},
+        )
+        payload = json.loads(body.decode("utf-8"))
+
+        self.assertEqual(status, 400)
+        self.assertIn("answer_mode", payload["error"])
+
     def test_evidence_endpoint_returns_graph_evidence(self) -> None:
         payload = self._get_json("/evidence/c1")
 
@@ -155,6 +200,13 @@ class ApiServerTest(unittest.TestCase):
         payload = self._get_json("/tables/t1")
 
         self.assertIn("<table>", payload["table"]["table_html"])
+
+    def test_asset_endpoint_returns_image_bytes(self) -> None:
+        status, content_type, body = self._call_handler("GET", "/assets/fig1/image")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "image/png")
+        self.assertTrue(body.startswith(b"\x89PNG"))
 
 
 if __name__ == "__main__":

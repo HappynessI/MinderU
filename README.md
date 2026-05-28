@@ -40,7 +40,8 @@ scripts/run_sample_pipeline.sh
 python3 -m minderu.cli query \
   --index data/runs/sample_kb/index.json \
   --source-hint seyfarth2008.pdf \
-  --question "请根据输入的文献内容，提取摘要中的结果部分内容"
+  --question "请根据输入的文献内容，提取摘要中的结果部分内容" \
+  --answer-mode grounded
 ```
 
 可选启用 hybrid 检索骨架：
@@ -75,17 +76,26 @@ python3 -m minderu.cli eval-retrieval \
   --top-k-values 1,3,5
 ```
 
+导出 Qdrant 导入用 JSONL：
+
+```bash
+python3 -m minderu.cli export-qdrant \
+  --index data/runs/sample_kb/index.json \
+  --output data/runs/sample_kb/qdrant_points.jsonl \
+  --collection minderu_documents
+```
+
 启动 Web Demo / API：
 
 ```bash
-python3 -m minderu.cli api --index data/runs/sample_kb/index.json --host 127.0.0.1 --port 8000
+python3 -m minderu.cli api --index data/runs/sample_kb/index.json --answer-mode grounded --host 127.0.0.1 --port 8000
 curl -s http://127.0.0.1:8000/health
 curl -s -X POST http://127.0.0.1:8000/query \
   -H 'Content-Type: application/json' \
-  -d '{"question":"提取第2页问题四的答案","source_hint":"子宫内膜异位症超声评估中国专家共识.pdf"}'
+  -d '{"question":"提取第2页问题四的答案","source_hint":"子宫内膜异位症超声评估中国专家共识.pdf","answer_mode":"grounded"}'
 ```
 
-浏览器打开 `http://127.0.0.1:8000/` 即可使用简约风格 Web Demo。Demo 会从 `/documents` 读取当前知识库文献列表，并通过 `/query` 返回抽取式答案和 citations。
+浏览器打开 `http://127.0.0.1:8000/` 即可使用简约风格 Web Demo。Demo 会从 `/documents` 读取当前知识库文献列表，并通过 `/query` 返回答案、citations 和 evidence packages。
 
 ## 已覆盖能力
 
@@ -95,6 +105,9 @@ curl -s -X POST http://127.0.0.1:8000/query \
 - 可追溯检索：每个 chunk 保留文献名、页码、元素类型、section path、element id。
 - 混合检索骨架：支持 BM25 + 可选 dense embedding + RRF；无 dense 依赖时自动回退 BM25。
 - 证据打包：`/query` 返回 chunk citations 和 evidence packages，便于展示表格/图像/同页证据组。
+- Grounded 回答：支持 `extractive`、`grounded` 和 `evidence_only` 三种 answer mode，其中 grounded 模式强制输出 `[E#]` 引用。
+- 证据资产：支持 `/tables/{evidence_id}` 返回表格资产，`/assets/{evidence_id}/image` 返回已入库图像资产。
+- 向量库交付：支持导出 Qdrant-compatible JSONL，可选择附带 dense embedding。
 - 检索评测：独立输出 Source Hit@k、Evidence Type Hit@k、Page Hit@k 和 MRR。
 - 样例评测：自动读取赛事样例 Excel，输出 `sample_eval.md/json/jsonl`。
 - 盲评模式：默认不使用样例来源列作为检索过滤，报告 Top-3 来源命中。

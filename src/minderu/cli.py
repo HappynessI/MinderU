@@ -9,9 +9,10 @@ from minderu.api.server import serve
 from minderu.chunking import chunk_document
 from minderu.eval.retrieval import evaluate_retrieval
 from minderu.eval.samples import evaluate_sample_questions
+from minderu.indexing.qdrant_export import export_qdrant_points
 from minderu.indexing.store import build_index, load_index
 from minderu.parsers import load_mineru_document, parse_pdf_with_poppler
-from minderu.qa import answer_question
+from minderu.qa import ANSWER_MODES, answer_question
 from minderu.schema import DocumentRecord
 from minderu.utils import list_input_files, write_json
 
@@ -69,6 +70,7 @@ def query(args: argparse.Namespace) -> None:
         reranker=args.reranker,
         reranker_model=args.reranker_model,
         rerank_pool=args.rerank_pool,
+        answer_mode=args.answer_mode,
     )
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -124,6 +126,17 @@ def inspect(args: argparse.Namespace) -> None:
         print(f"{key}: {by_type[key]}")
 
 
+def export_qdrant(args: argparse.Namespace) -> None:
+    _, chunks, _ = load_index(args.index)
+    out = export_qdrant_points(
+        chunks,
+        args.output,
+        collection=args.collection,
+        embedding_model=args.embedding_model,
+    )
+    print(f"qdrant points written: {out}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="minderu")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -145,6 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--reranker", choices=("none", "rules", "cross-encoder"), default="rules")
     p.add_argument("--reranker-model", default=None, help="Optional sentence-transformers CrossEncoder model.")
     p.add_argument("--rerank-pool", type=int, default=50)
+    p.add_argument("--answer-mode", choices=ANSWER_MODES, default="extractive")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=query)
 
@@ -179,6 +193,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--index", required=True)
     p.set_defaults(func=inspect)
 
+    p = sub.add_parser("export-qdrant", help="Export chunks as Qdrant-compatible JSONL points.")
+    p.add_argument("--index", required=True)
+    p.add_argument("--output", required=True)
+    p.add_argument("--collection", default="minderu_documents")
+    p.add_argument("--embedding-model", default=None, help="Optional sentence-transformers model to include vectors.")
+    p.set_defaults(func=export_qdrant)
+
     p = sub.add_parser("api", help="Start the zero-dependency HTTP API.")
     p.add_argument("--index", required=True)
     p.add_argument("--host", default="127.0.0.1")
@@ -188,6 +209,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--reranker", choices=("none", "rules", "cross-encoder"), default="rules")
     p.add_argument("--reranker-model", default=None, help="Optional sentence-transformers CrossEncoder model.")
     p.add_argument("--rerank-pool", type=int, default=50)
+    p.add_argument("--answer-mode", choices=ANSWER_MODES, default="extractive")
     p.set_defaults(
         func=lambda a: serve(
             a.index,
@@ -198,6 +220,7 @@ def build_parser() -> argparse.ArgumentParser:
             reranker=a.reranker,
             reranker_model=a.reranker_model,
             rerank_pool=a.rerank_pool,
+            answer_mode=a.answer_mode,
         )
     )
     return parser

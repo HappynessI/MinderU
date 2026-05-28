@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from minderu.indexing.store import load_index
-from minderu.qa import answer_question
+from minderu.qa import ANSWER_MODES, answer_question
 from minderu.utils import read_json
 
 WEB_DIR = Path(__file__).resolve().parents[1] / "web"
@@ -20,9 +20,11 @@ class QueryHandler(BaseHTTPRequestHandler):
     reranker = "rules"
     reranker_model = None
     rerank_pool = 50
+    answer_mode = "extractive"
     evidence_by_id = {}
     pages_by_key = {}
     tables_by_id = {}
+    asset_files = {}
 
     def _send_bytes(self, status: int, body: bytes, content_type: str) -> None:
         self.send_response(status)
@@ -49,6 +51,8 @@ class QueryHandler(BaseHTTPRequestHandler):
             self._serve_page(path)
         elif path.startswith("/tables/"):
             self._serve_table(path)
+        elif path.startswith("/assets/"):
+            self._serve_asset(path)
         else:
             self._json(404, {"error": "not found"})
 
@@ -83,6 +87,18 @@ class QueryHandler(BaseHTTPRequestHandler):
             self._json(404, {"error": "table evidence not found"})
             return
         self._json(200, {"table": table})
+
+    def _serve_asset(self, path: str) -> None:
+        parts = path.strip("/").split("/")
+        if len(parts) != 3 or parts[0] != "assets":
+            self._json(404, {"error": "not found"})
+            return
+        evidence_id, asset_key = parts[1], parts[2]
+        asset_path = self.asset_files.get((evidence_id, asset_key))
+        if not asset_path or not asset_path.exists() or not asset_path.is_file():
+            self._json(404, {"error": "asset not found"})
+            return
+        self._send_bytes(200, asset_path.read_bytes(), _content_type(asset_path))
 
     def _serve_web(self) -> None:
         index_path = WEB_DIR / "index.html"
@@ -120,6 +136,10 @@ class QueryHandler(BaseHTTPRequestHandler):
             self._json(400, {"error": "top_k must be an integer"})
             return
         top_k = max(1, min(top_k, 20))
+        answer_mode = str(payload.get("answer_mode") or self.answer_mode)
+        if answer_mode not in ANSWER_MODES:
+            self._json(400, {"error": f"answer_mode must be one of: {', '.join(ANSWER_MODES)}"})
+            return
         self._json(
             200,
             answer_question(
@@ -130,6 +150,7 @@ class QueryHandler(BaseHTTPRequestHandler):
                 reranker=self.reranker,
                 reranker_model=self.reranker_model,
                 rerank_pool=self.rerank_pool,
+                answer_mode=answer_mode,
             ),
         )
 
@@ -141,6 +162,7 @@ def configure_handler(
     reranker: str = "rules",
     reranker_model: str | None = None,
     rerank_pool: int = 50,
+    answer_mode: str = "extractive",
 ) -> None:
     docs, _, index = load_index(index_path, retriever=retriever, embedding_model=embedding_model)
     QueryHandler.index = index
@@ -148,6 +170,7 @@ def configure_handler(
     QueryHandler.reranker = reranker
     QueryHandler.reranker_model = reranker_model
     QueryHandler.rerank_pool = rerank_pool
+    QueryHandler.answer_mode = answer_mode
     QueryHandler.documents = [
         {
             "doc_id": doc.doc_id,
@@ -163,9 +186,11 @@ def configure_handler(
 
 def _configure_graph_maps(index_path: str | Path) -> None:
     payload = read_json(index_path)
+    index_root = Path(index_path).resolve().parent
     evidence_by_id = {}
     pages_by_key = {}
     tables_by_id = {}
+    asset_files = {}
     for graph in payload.get("graphs", []):
         doc_id = graph.get("doc_id")
         blocks_by_id = {block.get("block_id"): block for block in graph.get("blocks", [])}
@@ -179,6 +204,9 @@ def _configure_graph_maps(index_path: str | Path) -> None:
                 assets = _table_assets(evidence)
                 if assets:
                     tables_by_id[evidence_id] = {"evidence_id": evidence_id, **assets, "metadata": evidence.get("metadata", {})}
+            image_path = _resolve_asset_path(evidence, graph, index_root, "image_path")
+            if image_path:
+                asset_files[(evidence_id, "image")] = image_path
         for page in graph.get("pages", []):
             page_num = page.get("page")
             if doc_id is None or page_num is None:
@@ -196,6 +224,7 @@ def _configure_graph_maps(index_path: str | Path) -> None:
     QueryHandler.evidence_by_id = evidence_by_id
     QueryHandler.pages_by_key = pages_by_key
     QueryHandler.tables_by_id = tables_by_id
+    QueryHandler.asset_files = asset_files
 
 
 def _table_assets(evidence: dict) -> dict:
@@ -207,6 +236,35 @@ def _table_assets(evidence: dict) -> dict:
     return assets
 
 
+def _resolve_asset_path(evidence: dict, graph: dict, index_root: Path, key: str) -> Path | None:
+    value = evidence.get("metadata", {}).get(key)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    raw = Path(value)
+    candidates = [raw] if raw.is_absolute() else [index_root / raw, Path(str(graph.get("path", ""))).parent / raw]
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            continue
+        if resolved.exists() and resolved.is_file():
+            return resolved
+    return None
+
+
+def _content_type(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    if suffix == ".png":
+        return "image/png"
+    if suffix == ".gif":
+        return "image/gif"
+    if suffix == ".webp":
+        return "image/webp"
+    return "application/octet-stream"
+
+
 def serve(
     index_path: str | Path,
     host: str = "127.0.0.1",
@@ -216,6 +274,7 @@ def serve(
     reranker: str = "rules",
     reranker_model: str | None = None,
     rerank_pool: int = 50,
+    answer_mode: str = "extractive",
 ) -> None:
     configure_handler(
         index_path,
@@ -224,6 +283,7 @@ def serve(
         reranker=reranker,
         reranker_model=reranker_model,
         rerank_pool=rerank_pool,
+        answer_mode=answer_mode,
     )
     server = ThreadingHTTPServer((host, port), QueryHandler)
     print(f"MinderU demo listening on http://{host}:{port}")
@@ -242,6 +302,7 @@ def main() -> None:
     parser.add_argument("--reranker", choices=("none", "rules", "cross-encoder"), default="rules")
     parser.add_argument("--reranker-model", default=None)
     parser.add_argument("--rerank-pool", type=int, default=50)
+    parser.add_argument("--answer-mode", choices=("extractive", "evidence_only", "grounded"), default="extractive")
     args = parser.parse_args()
     serve(
         args.index,
@@ -252,6 +313,7 @@ def main() -> None:
         reranker=args.reranker,
         reranker_model=args.reranker_model,
         rerank_pool=args.rerank_pool,
+        answer_mode=args.answer_mode,
     )
 
 

@@ -472,8 +472,15 @@ RAG 层：
 - `--reranker none|rules|cross-encoder` 和 `--reranker-model` 贯通 query/eval/API。
 - 新增 graph evidence API：`/evidence/{id}`、`/documents/{doc_id}/pages/{page}`、`/tables/{id}`。
 
+第四批已完成：
+
+- 新增 `minderu.qa.grounded`，支持 `grounded` 和 `evidence_only` answer mode。
+- `/query` 和 CLI 增加 `answer_mode` 参数；API 对非法模式返回 400，避免静默降级。
+- 新增 `/assets/{evidence_id}/image`，可直接返回 MinerU metadata 中保留的图像资产。
+- 新增 `minderu export-qdrant`，输出 Qdrant-compatible JSONL，支持 payload-only 和可选 dense vector。
+
 下一批优先实现：
 
-1. 真正的 page crop/image asset 服务，基于 MinerU 页面图和 bbox 返回可视证据。
-2. Qdrant backend，用 payload filter 替代本地内存 dense search。
-3. Grounded LLM synthesis，并用 citation validator 拦截无证据生成。
+1. 在线 Qdrant backend，用 payload filter 替代本地内存 dense search。
+2. 基于页面图和 bbox 的 crop asset 服务，补齐扫描版页面局部证据。
+3. 可选 LLM synthesis，并用 citation validator 拦截无证据生成。

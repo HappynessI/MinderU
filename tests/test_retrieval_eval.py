@@ -50,6 +50,7 @@ class RetrievalEvalTest(unittest.TestCase):
             results = evaluate_retrieval(index, root / "eval", samples_jsonl=samples)
 
             self.assertEqual(results[0]["metrics"]["source_hit_at_1"], True)
+            self.assertTrue(results[0]["evidence_packages"])
             self.assertTrue((root / "eval" / "retrieval_eval.md").exists())
 
 

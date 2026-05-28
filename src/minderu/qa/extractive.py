@@ -5,7 +5,10 @@ from typing import Any
 
 from minderu.evidence import pack_evidence
 from minderu.indexing.bm25 import BM25Index, tokenize
+from minderu.qa.grounded import evidence_only_answer, grounded_answer
 from minderu.rerank import rerank_evidence
+
+ANSWER_MODES = ("extractive", "evidence_only", "grounded")
 
 
 def _clean_snippet(text: str, max_chars: int = 1200) -> str:
@@ -78,14 +81,19 @@ def answer_question(
     reranker: str = "rules",
     reranker_model: str | None = None,
     rerank_pool: int = 50,
+    answer_mode: str = "extractive",
 ) -> dict[str, Any]:
+    if answer_mode not in ANSWER_MODES:
+        raise ValueError(f"unsupported answer_mode: {answer_mode}")
     pool = max(top_k, min(max(rerank_pool, top_k), max(top_k * 4, rerank_pool)))
     hits = index.search(question, top_k=pool, source_hint=source_hint, page_hint=_page_hint(question))
     hits = rerank_evidence(question, hits, mode=reranker, model_name=reranker_model)[:top_k]
     if not hits:
         return {
             "answer": "未检索到足够证据。请确认文献已经入库，或提高解析质量后重建索引。",
+            "answer_mode": answer_mode,
             "citations": [],
+            "evidence_packages": [],
             "retrieved": [],
             "source_hint": source_hint,
         }
@@ -124,13 +132,19 @@ def answer_question(
         if best and len(fallback_parts) < 3:
             fallback_parts.extend(best[: max(1, 3 - len(fallback_parts))])
 
-    answer_source = targeted_parts if targeted_parts else fallback_parts
-    answer = "\n".join(f"- {part}" for part in answer_source[:4])
-    if re.search(r"图|figure|fig", question, re.I):
-        answer += "\n\n注意：若原文目标是流程图/图片，本地零依赖解析只能定位页码、图注或附近文本；完整图像内容需要 MinerU OCR/VLM 输出或页面截图证据。"
     citations = evidence[:top_k]
+    if answer_mode == "evidence_only":
+        answer = evidence_only_answer(citations)
+    elif answer_mode == "grounded":
+        answer = grounded_answer(question, citations)
+    else:
+        answer_source = targeted_parts if targeted_parts else fallback_parts
+        answer = "\n".join(f"- {part}" for part in answer_source[:4])
+        if re.search(r"图|figure|fig", question, re.I):
+            answer += "\n\n注意：若原文目标是流程图/图片，本地零依赖解析只能定位页码、图注或附近文本；完整图像内容需要 MinerU OCR/VLM 输出或页面截图证据。"
     return {
         "answer": answer,
+        "answer_mode": answer_mode,
         "citations": citations,
         "evidence_packages": pack_evidence(citations),
         "retrieved": hits,
